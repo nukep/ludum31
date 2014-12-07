@@ -9,13 +9,13 @@
   </data>
  </layer>
  <objectgroup name="Object Layer 1">
-  <object type="player" x="304" y="160" width="16" height="16"/>
-  <object type="switch" x="274.75" y="168" width="16" height="16">
+  <object type="player" x="320" y="160" width="16" height="16"/>
+  <object type="switch" x="280" y="172" width="16" height="16">
    <properties>
     <property name="trigger" value="1"/>
    </properties>
   </object>
-  <object type="chest" x="0" y="136" width="16" height="16">
+  <object type="chest" x="0" y="136" width="16" height="40">
    <properties>
     <property name="contains" value="drill"/>
     <property name="poof" value="true"/>
@@ -34,7 +34,7 @@
     <property name="poof" value="true"/>
     <property name="static" value="true"/>
     <property name="trigger" value="2"/>
-    <property name="triggered_by" value="1"/>
+    <property name="triggered_by" value="3"/>
    </properties>
   </object>
   <object type="chest" x="0" y="96" width="16" height="16">

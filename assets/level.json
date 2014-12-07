@@ -28,7 +28,7 @@
                  "type":"player",
                  "visible":true,
                  "width":16,
-                 "x":304,
+                 "x":320,
                  "y":160
                 }, 
                 {
@@ -42,11 +42,11 @@
                  "type":"switch",
                  "visible":true,
                  "width":16,
-                 "x":274.75,
-                 "y":168
+                 "x":280,
+                 "y":172
                 }, 
                 {
-                 "height":16,
+                 "height":40,
                  "name":"",
                  "properties":
                     {
@@ -85,7 +85,7 @@
                      "poof":"true",
                      "static":"true",
                      "trigger":"2",
-                     "triggered_by":"1"
+                     "triggered_by":"3"
                     },
                  "rotation":0,
                  "type":"chest",

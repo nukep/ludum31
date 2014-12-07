@@ -42,7 +42,8 @@ pub struct Chest {
     pub trigger: Option<u8>,
     pub triggered_by: Option<u8>,
     pub poof: bool,
-    pub is_static: bool
+    pub is_static: bool,
+    pub fall_distance: f32
 }
 
 pub struct Beanstalk {
@@ -58,9 +59,9 @@ pub struct Level {
     pub height: u8,
     pub player_start_pos: (f32, f32),
     tiles: Vec<Tile>,
-    switches: Vec<Switch>,
-    chests: Vec<Chest>,
-    beanstalks: Vec<Beanstalk>
+    pub switches: Vec<Switch>,
+    pub chests: Vec<Chest>,
+    pub beanstalks: Vec<Beanstalk>
 }
 
 impl Level {
@@ -219,6 +220,7 @@ fn parse_from_json(input: &str) -> Level {
         let object = x.as_object().expect("Not a JSON object");
         let x = object.get("x").unwrap().as_f64().unwrap() as f32;
         let y = object.get("y").unwrap().as_f64().unwrap() as f32;
+        let height = object.get("height").unwrap().as_f64().unwrap() as f32;
         let properties = object.get("properties").unwrap().as_object().expect("Not a JSON object");
         let typ = object.get("type").unwrap().as_string().unwrap();
 
@@ -246,10 +248,10 @@ fn parse_from_json(input: &str) -> Level {
                     triggered_by: triggered_by,
                     poof: poof,
                     is_static: is_static,
+                    fall_distance: height - 16.0
                 });
             },
             "beanstalk" => {
-                let height = object.get("height").unwrap().as_f64().unwrap() as f32;
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
                 let poof = parse_property_as_boolean(properties, "poof");
 
@@ -262,7 +264,7 @@ fn parse_from_json(input: &str) -> Level {
                 })
             },
             "monster1" => {
-                
+
             },
             _ => panic!("Unknown type: {}", typ)
         };

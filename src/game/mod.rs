@@ -9,6 +9,7 @@ use self::level::Level;
 use self::render::{GameRenderState};
 
 mod audio;
+mod collision;
 mod items;
 mod level;
 pub mod render;
@@ -215,7 +216,7 @@ impl Game {
             }
         };
         let level = Level::load();
-        let items = DynamicItems::new();
+        let items = DynamicItems::new(&level);
         let player = Player::new(level.player_start_pos);
         let scroll_x = 0.0;
 
@@ -259,26 +260,42 @@ impl GameStepper<Input, GameStepResult> for Game {
         let last_player_is_walking = self.player.is_walking();
         self.player.tick(&self.level, up, down, left, right);
         self.items.step_poofs();
-        let cur_player_pos = self.player.get_pos();
-        let cur_player_is_walking = self.player.is_walking();
+        self.items.step_falling_chests();
+        {
+            let cur_player_pos = self.player.get_pos();
+            let switch_triggers: Vec<u8> = {
+                let switches = match cur_player_pos {
+                    (x, y) => self.items.switch_hit_test(x, y, 16.0, 16.0)
+                };
 
-        if let Some(ref mut audio) = self.audio {
-            match (last_player_is_walking, cur_player_is_walking) {
-                (false, true) => audio.start_walking(),
-                (true, false) => audio.stop_walking(),
-                _ => ()
+                switches.iter().map(|switch| {
+                    switch.trigger
+                }).collect()
             };
-        }
+            let mut play_poof_sound = false;
 
-        if !lock_scrolling {
-            let (lx, ly) = last_player_pos;
-            let (cx, cy) = cur_player_pos;
-            self.scroll(cx-lx, cy-ly);
-        }
+            for trigger in switch_triggers.iter() {
+                play_poof_sound |= self.items.trigger(*trigger);
+            }
 
-        if input.is_mouse_button_newly_down(sdl2::mouse::LEFTMOUSESTATE) {
+            let cur_player_is_walking = self.player.is_walking();
+
             if let Some(ref mut audio) = self.audio {
-                audio.jump();
+                match (last_player_is_walking, cur_player_is_walking) {
+                    (false, true) => audio.start_walking(),
+                    (true, false) => audio.stop_walking(),
+                    _ => ()
+                };
+
+                if play_poof_sound {
+                    audio.poof();
+                }
+            }
+
+            if !lock_scrolling {
+                let (lx, ly) = last_player_pos;
+                let (cx, cy) = cur_player_pos;
+                self.scroll(cx-lx, cy-ly);
             }
         }
 

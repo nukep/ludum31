@@ -42,7 +42,7 @@ impl GameRenderState {
         unsafe {
             let (w, h) = step_result.viewport;
             gl::Viewport(0, 0, w, h);
-            gl::ClearColor(0.3, 0.3, 0.4, 1.0);
+            gl::ClearColor(0.1, 0.1, 0.15, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::BLEND);
         };
@@ -104,6 +104,32 @@ impl GameRenderState {
                     }
                 }
 
+                // Draw switches
+                for switch in game.items.switches.iter() {
+                    let tile = match switch.is_down {
+                        false => 0x18,
+                        true => 0x19
+                    };
+                    draw_tile_all(Float::floor(switch.x), Float::floor(switch.y), tile, (false, false));
+                }
+
+                // Draw chests
+                for chest in game.items.chests.iter().take_while(|t| t.visible) {
+                    let tile_offset = match chest.is_static {
+                        true => 0,
+                        false => 5
+                    };
+                    let tile = match chest.phase*5.0 {
+                        0.0...1.0 => 0x04,
+                        1.0...2.0 => 0x05,
+                        2.0...3.0 => 0x06,
+                        3.0...4.0 => 0x07,
+                        4.0...5.0 => 0x08,
+                        _ => 0x08
+                    } + tile_offset;
+                    draw_tile_all(Float::floor(chest.x), Float::floor(chest.y)+3.0, tile, (false, false));
+                }
+
                 // Draw player
                 {
                     use super::PlayerState;
@@ -117,7 +143,7 @@ impl GameRenderState {
                                 Some(0.6...1.0) => 3,
                                 _ => 3
                             };
-                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, s.direction.get_flip());
+                            draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip());
                         },
                         _ => ()
                     };

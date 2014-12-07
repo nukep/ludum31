@@ -60,6 +60,27 @@ impl Audio {
         }.iter());
     }
 
+    pub fn poof(&mut self) {
+        let mut lock = self.device.lock();
+        let mut controller = &mut ((*lock).controller);
+
+        controller.set_effect(2, box SweepEffect {
+            freq: (400.0, 10.0),
+            volume: (0.3, 0.5),
+            duty: (0.5, 0.5),
+            ticks: 16,
+            quantize: 1
+        }.iter());
+
+        controller.set_effect(3, box SweepEffect {
+                freq: (50.0, 2000.0),
+                volume: (0.3, 0.5),
+                duty: (0.5, 0.5),
+                ticks: 16,
+                quantize: 1
+        }.iter());
+    }
+
     pub fn start_walking(&mut self) {
         use std::iter::repeat;
 
