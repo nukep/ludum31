@@ -1,0 +1,166 @@
+use util::png;
+use opengl_util::shader::Program;
+use opengl_util::texture::Texture2D;
+use opengl_util::vertex::VertexArray;
+use super::{Game, GameStepResult};
+
+pub struct GameRenderState {
+    tileset: Texture2D,
+    tileset_vao: VertexArray,
+    shader_program: Program
+}
+
+impl GameRenderState {
+    pub fn new() -> GameRenderState {
+        use opengl_util::shape;
+
+        let shader_program = load_default_program();
+        let a_position = shader_program.get_attrib("position");
+        let a_texture_uv = shader_program.get_attrib("texture_uv");
+
+        let tileset_data = include_bin!("../../assets/tileset.png");
+        let tileset = match png::load_png32_data_and_upload(tileset_data) {
+            Ok(tileset) => tileset,
+            Err(e) => panic!("{}", e)
+        };
+
+        let tileset_vao = shape::gen_tileset(8, 7, a_position, a_texture_uv);
+
+        GameRenderState {
+            tileset: tileset,
+            tileset_vao: tileset_vao,
+            shader_program: shader_program
+        }
+    }
+
+    pub fn render(&mut self, game: &Game, step_result: &GameStepResult) {
+        use gl;
+        use cgmath::{Matrix4, FixedArray};
+        use util::matrix::MatrixBuilder;
+        use std::num::Float;
+
+        unsafe {
+            let (w, h) = step_result.viewport;
+            gl::Viewport(0, 0, w, h);
+            gl::ClearColor(0.3, 0.3, 0.4, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Enable(gl::BLEND);
+        };
+
+        let u_projection_view = self.shader_program.get_uniform("projection_view");
+        let u_model = self.shader_program.get_uniform("model");
+
+        self.shader_program.use_program(|uniform| {
+            uniform.set_mat4(u_projection_view, step_result.projection_view.as_fixed());
+            unsafe {
+                gl::Enable(gl::TEXTURE_2D);
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            };
+            self.tileset.bind(0);
+            self.tileset_vao.bind_vao(|vao_ctx| {
+                let draw_tile = |x: f32, y: f32, id: u16, flip: (bool, bool)| {
+                    let (flip_x, flip_y) = flip;
+
+                    let mut model = Matrix4::identity()
+                        .translate(x, y, 0.0)
+                        .scale(16.0, 16.0, 0.0);
+                    if flip_x {
+                        model = model
+                            .translate(1.0, 0.0, 0.0)
+                            .scale(-1.0, 1.0, 1.0);
+                    }
+                    if flip_y {
+                        model = model
+                            .translate(0.0, 1.0, 0.0)
+                            .scale(1.0, -1.0, 1.0);
+                    }
+                    uniform.set_mat4(u_model, model.as_fixed());
+                    vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
+                };
+                let tile_size = 16.0;
+                let (width, height) = (game.level.width as f32 * tile_size, game.level.height as f32 * tile_size);
+
+                let draw_tile_all = |x: f32, y: f32, id: u16, flip: (bool, bool)| {
+                    // FIXME
+                    draw_tile(x - width, y - height, id, flip);
+                    draw_tile(x, y - height, id, flip);
+                    draw_tile(x + width, y - height, id, flip);
+                    draw_tile(x - width, y, id, flip);
+                    draw_tile(x, y, id, flip);
+                    draw_tile(x + width, y, id, flip);
+                    draw_tile(x - width, y + height, id, flip);
+                    draw_tile(x, y + height, id, flip);
+                    draw_tile(x + width, y + height, id, flip);
+                };
+
+                // Draw all background tiles
+                for (x, y, tile) in game.level.iter() {
+                    if tile.tile_type.id > 0 {
+                        let (fx, fy) = (x as f32 * tile_size, y as f32 * tile_size);
+                        let id = tile.tile_type.id-1;
+                        let flip = (tile.flip_x, tile.flip_y);
+
+                        draw_tile_all(fx, fy, id, flip);
+                    }
+                }
+
+                // Draw player
+                {
+                    use super::PlayerState;
+
+                    match game.player.state {
+                        PlayerState::Stand(ref s) => {
+                            let tile = match s.running_cycle {
+                                None => 0,
+                                Some(0.0...0.3) => 1,
+                                Some(0.3...0.6) => 2,
+                                Some(0.6...1.0) => 3,
+                                _ => 3
+                            };
+                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, s.direction.get_flip());
+                        },
+                        _ => ()
+                    };
+                }
+
+                // Draw poofs
+                for poof in game.items.poofs.iter() {
+                    let tile = match poof.phase*6.0 {
+                        0.0...1.0 => 0x1A,
+                        1.0...2.0 => 0x1B,
+                        2.0...3.0 => 0x1C,
+                        3.0...4.0 => 0x1D,
+                        4.0...5.0 => 0x1E,
+                        5.0...6.0 => 0x1F,
+                        _ => 0x1F
+                    };
+                    draw_tile_all(Float::floor(poof.x), Float::floor(poof.y), tile, (false, false));
+                }
+
+                // match game.player.state { }
+            });
+        });
+    }
+}
+
+
+fn load_default_program() -> Program {
+    use opengl_util::shader::{Shader};
+
+    let vertex_source = include_str!("shaders/vertex.glsl");
+    let fragment_source = include_str!("shaders/fragment.glsl");
+
+    let vertex = match Shader::vertex_from_source(vertex_source) {
+        Ok(shader) => shader,
+        Err(s) => panic!("Vertex shader compilation error: {}", s)
+    };
+    let fragment = match Shader::fragment_from_source(fragment_source) {
+        Ok(shader) => shader,
+        Err(s) => panic!("Fragment shader compilation error: {}", s)
+    };
+
+    match Program::link("default".to_string(), &[&vertex, &fragment]) {
+        Ok(program) => program,
+        Err(s) => panic!("Shader link error: {}", s)
+    }
+}

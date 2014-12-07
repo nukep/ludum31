@@ -1,0 +1,11 @@
+[package]
+
+name = "game_platforms"
+version = "0.0.1"
+authors = ["Dan Spencer <dan@atomicpotato.net>"]
+
+[dependencies.sdl2]
+git = "https://github.com/AngryLawyer/rust-sdl2"
+
+[dependencies.time]
+git = "https://github.com/rust-lang/time"

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="28" height="16" tilewidth="16" tileheight="16" backgroundcolor="#808080">
+ <tileset firstgid="1" name="tileset" tilewidth="16" tileheight="16">
+  <image source="tileset.png" width="128" height="112"/>
+ </tileset>
+ <layer name="Tile Layer 1" width="28" height="16">
+  <data encoding="base64" compression="zlib">
+   eJztUkkKgDAMzBeUutw9iYq4vs+nqxgxlCmtGjw5MKQkzUzTlkgXhmgxypohfq1nX7fti4/4GLtG9PF8b5Hw3DZzjomyX7/5nevSilxXxcCxc8w5ifOEAGkgPTQbHXWvhqTEDM6D9OQfHkBPKFDvmWtu9Gj41Rzt+7zrJ+9pFOvUylWE32N05GOgtTMDNI68BgvAiK5/geo/3VwBJQ8d5Q==
+  </data>
+ </layer>
+ <objectgroup name="Object Layer 1">
+  <object type="player" x="304" y="160" width="16" height="16"/>
+  <object type="switch" x="274.75" y="168" width="16" height="16">
+   <properties>
+    <property name="trigger" value="1"/>
+   </properties>
+  </object>
+  <object type="chest" x="0" y="136" width="16" height="16">
+   <properties>
+    <property name="contains" value="drill"/>
+    <property name="poof" value="true"/>
+    <property name="trigger" value="3"/>
+    <property name="triggered_by" value="1"/>
+   </properties>
+  </object>
+  <object type="beanstalk" x="80" y="0" width="16" height="160">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="2"/>
+   </properties>
+  </object>
+  <object type="chest" x="80" y="160" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="static" value="true"/>
+    <property name="trigger" value="2"/>
+    <property name="triggered_by" value="1"/>
+   </properties>
+  </object>
+  <object type="chest" x="0" y="96" width="16" height="16">
+   <properties>
+    <property name="contains" value="nothing"/>
+    <property name="static" value="true"/>
+    <property name="triggered_by" value="1"/>
+   </properties>
+  </object>
+  <object type="chest" x="304" y="16" width="16" height="16">
+   <properties>
+    <property name="contains" value="useless"/>
+   </properties>
+  </object>
+  <object type="chest" x="48" y="16" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="static" value="true"/>
+    <property name="triggered_by" value="2"/>
+   </properties>
+  </object>
+  <object type="monster1" x="112" y="192" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="3"/>
+   </properties>
+  </object>
+  <object type="monster1" x="64" y="16" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="2"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

@@ -1,0 +1,26 @@
+[package]
+
+name = "ludum31"
+version = "0.0.1"
+authors = ["Dan Spencer <dan@atomicpotato.net>"]
+
+[dependencies.sdl2]
+git = "https://github.com/AngryLawyer/rust-sdl2"
+
+[dependencies.game_platforms]
+path = "rust-game-platforms"
+
+[dependencies.gl]
+git = "https://github.com/bjz/gl-rs"
+
+[dependencies.cgmath]
+git = "https://github.com/bjz/cgmath-rs"
+
+[dependencies.time]
+git = "https://github.com/rust-lang/time"
+
+[dependencies.synth]
+path = "synth"
+
+[dependencies.lodepng]
+git = "https://github.com/nukep/lodepng-rust"

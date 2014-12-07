@@ -1,0 +1,6 @@
+[submodule "src/opengl-util"]
+	path = src/opengl-util
+	url = https://github.com/nukep/rust-opengl-util/
+[submodule "src/opengl_util"]
+	path = src/opengl_util
+	url = https://github.com/nukep/rust-opengl-util/
