@@ -1,5 +1,6 @@
 use super::level::Level;
 use super::collision;
+use super::rect::RectExt;
 
 pub struct Poof {
     pub x: f32,

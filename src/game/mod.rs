@@ -12,6 +12,7 @@ mod audio;
 mod collision;
 mod items;
 mod level;
+mod rect;
 pub mod render;
 
 fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool>, Option<bool>){
@@ -143,9 +144,57 @@ impl PlayerStateStand {
     }
 }
 
+pub struct PlayerStateDigging {
+    direction: PlayerDiggingDirection,
+    x: f32,
+    y: f32
+}
+
+impl PlayerStateDigging {
+    fn dig(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) {
+        let speed = 2.0;
+        let (x, y, direction) = if up {
+            self.direction = PlayerDiggingDirection::Up;
+            (self.x, self.y - speed, Some(into_direction(true, false, false, false)))
+        } else if down {
+            self.direction = PlayerDiggingDirection::Down;
+            (self.x, self.y + speed, Some(into_direction(false, true, false, false)))
+        } else if left {
+            self.direction = PlayerDiggingDirection::Left;
+            (self.x - speed, self.y, Some(into_direction(false, false, true, false)))
+        } else if right {
+            self.direction = PlayerDiggingDirection::Right;
+            (self.x + speed, self.y, Some(into_direction(false, false, false, true)))
+        } else {
+            (self.x, self.y, None)
+        };
+
+        let (nx, ny) = level.wrap_coordinates((x, y));
+        self.x = nx;
+        self.y = ny;
+
+        match direction {
+            Some(direction) => {
+                match level.collision_tile_digging(self.get_rect(), direction) {
+                    Some((x, y)) => {
+                        self.x = x;
+                        self.y = y;
+                    },
+                    None => ()
+                }
+            },
+            None => ()
+        };
+    }
+
+    fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
+}
+
 pub enum PlayerState {
     Stand(PlayerStateStand),
-    Digging(PlayerDiggingDirection),
+    Digging(PlayerStateDigging),
     Climbing(int)
 }
 
@@ -176,6 +225,9 @@ impl Player {
                 s.apply_gravity(level);
                 s.run(level, left, right);
             },
+            PlayerState::Digging(ref mut s) => {
+                s.dig(level, up, down, left, right);
+            },
             _ => ()
         };
     }
@@ -185,6 +237,9 @@ impl Player {
 
         match self.state {
             PlayerState::Stand(ref s) => {
+                (Float::floor(s.x), Float::floor(s.y))
+            },
+            PlayerState::Digging(ref s) => {
                 (Float::floor(s.x), Float::floor(s.y))
             },
             _ => panic!("Unimplemented")
@@ -205,6 +260,14 @@ impl Player {
             },
             _ => false
         }
+    }
+
+    pub fn start_digging(&mut self, x: u8, y: u8) {
+        self.state = PlayerState::Digging(PlayerStateDigging {
+            direction: PlayerDiggingDirection::Down,
+            x: x as f32 * 16.0,
+            y: y as f32 * 16.0
+        });
     }
 }
 
@@ -280,12 +343,14 @@ impl GameStepper<Input, GameStepResult> for Game {
 
         let got_item = if down {
             let items = self.items.try_open_chest(self.player.get_rect());
+            let (px, py) = cur_player_pos;
 
             for item in items.iter() {
                 use self::items::ChestItem;
                 match item {
                     &ChestItem::Drill => {
                         self.player.item = PlayerItem::Drill;
+                        self.items.add_poof(px+5.0, py+5.0);
                     },
                     &ChestItem::Gun => {
                         self.player.item = PlayerItem::Gun;
@@ -298,6 +363,20 @@ impl GameStepper<Input, GameStepResult> for Game {
         } else {
             false
         };
+
+        if down {
+            if let PlayerState::Stand(_) = self.player.state {
+                if let PlayerItem::Drill = self.player.item {
+                    match self.level.is_dirt_entrance_below(self.player.get_rect()) {
+                        Some((x, y)) => {
+                            // Dig it up!
+                            self.player.start_digging(x, y);
+                        },
+                        None => ()
+                    };
+                }
+            }
+        }
 
         self.items.step_poofs();
         self.items.step_chests();

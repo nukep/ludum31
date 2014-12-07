@@ -1,5 +1,6 @@
 use std::num::FromStrRadix;
 use serialize;
+use super::rect::RectExt;
 
 pub struct Tile {
     pub tile_type: TileType,
@@ -9,7 +10,8 @@ pub struct Tile {
 
 pub struct TileType {
     pub id: u16,
-    pub is_blocking: bool
+    pub is_blocking: bool,
+    pub can_dig: bool
 }
 
 impl TileType {
@@ -22,10 +24,18 @@ impl TileType {
             10 => false,
             _ => true
         };
+        let can_dig = match id {
+            // Dirt
+            0x16 => true,
+            0x17 => true,
+            0x23 => true,
+            _ => false
+        };
 
         TileType {
             id: id,
-            is_blocking: is_blocking
+            is_blocking: is_blocking,
+            can_dig: can_dig
         }
     }
 }
@@ -85,9 +95,56 @@ impl Level {
         }
     }
 
+    fn nudge(x: f32, y: f32, left_top: (int, int), right_bottom: (int, int), direction: (Option<bool>, Option<bool>)) -> (f32, f32) {
+        let (left, top) = left_top;
+        let (right, bottom) = right_bottom;
+        let (nudge_right, nudge_bottom) = direction;
+
+        let new_left = match nudge_right {
+            None => x,
+            Some(false) => right as f32 * 16.0,
+            Some(true) => left as f32 * 16.0
+        };
+        let new_top = match nudge_bottom {
+            None => y,
+            Some(false) => bottom as f32 * 16.0,
+            Some(true) => top as f32 * 16.0
+        };
+        (new_left, new_top)
+    }
+
     /// Direction: (right?, down?)
     /// Returns: new top_left
     pub fn collision_tile(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
+        let (x, y, _, _) = rect;
+
+        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+
+        let nudge = tiles.iter().any(|&(t, _, _)| t.tile_type.is_blocking);
+
+        if nudge {
+            Some(Level::nudge(x, y, left_top, right_bottom, direction))
+        } else {
+            None
+        }
+    }
+
+    pub fn collision_tile_digging(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
+        let (x, y, _, _) = rect;
+
+        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+
+        let nudge = tiles.iter().any(|&(t, _, _)| !t.tile_type.can_dig);
+
+        if nudge {
+            Some(Level::nudge(x, y, left_top, right_bottom, direction))
+        } else {
+            None
+        }
+    }
+
+
+    fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
         use std::num::Float;
 
         let (x, y, x2, y2) = rect;
@@ -106,37 +163,26 @@ impl Level {
             (r, b)
         };
 
-        let tiles: [&Tile, ..4] = [
-            self.get_tile(left as u8, top as u8),
-            self.get_tile(right as u8, top as u8),
-            self.get_tile(left as u8, bottom as u8),
-            self.get_tile(right as u8, bottom as u8),
-        ];
+        ([
+            (self.get_tile(left as u8, top as u8), left, top),
+            (self.get_tile(right as u8, top as u8), right, top),
+            (self.get_tile(left as u8, bottom as u8), left, bottom),
+            (self.get_tile(right as u8, bottom as u8), right, bottom),
+        ], (left, top), (right, bottom))
+    }
 
-        let mut nudge = false;
-
-        for t in tiles.iter() {
-            if t.tile_type.is_blocking {
-                nudge = true;
+    fn is_tile_inside(&self, rect: (f32, f32, f32, f32), tile_id: u16) -> Option<(u8, u8)> {
+        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+        for &(tile, x, y) in tiles.iter() {
+            if (*tile).tile_type.id-1 == tile_id {
+                return Some((x as u8, y as u8))
             }
         }
+        None
+    }
 
-        if nudge {
-            let (nudge_right, nudge_bottom) = direction;
-            let new_left = match nudge_right {
-                None => x,
-                Some(false) => right as f32 * 16.0,
-                Some(true) => left as f32 * 16.0
-            };
-            let new_top = match nudge_bottom {
-                None => y,
-                Some(false) => bottom as f32 * 16.0,
-                Some(true) => top as f32 * 16.0
-            };
-            Some((new_left, new_top))
-        } else {
-            None
-        }
+    pub fn is_dirt_entrance_below(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
+        self.is_tile_inside(rect.offset(self, 0.0, 4.0), 0x15)
     }
 
     pub fn level_size_as_u32(&self) -> (u32, u32) {

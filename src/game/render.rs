@@ -24,7 +24,7 @@ impl GameRenderState {
             Err(e) => panic!("{}", e)
         };
 
-        let tileset_vao = shape::gen_tileset(8, 7, a_position, a_texture_uv);
+        let tileset_vao = shape::gen_tileset(8, 8, a_position, a_texture_uv);
 
         GameRenderState {
             tileset: tileset,
@@ -158,6 +158,17 @@ impl GameRenderState {
                                 PlayerItem::Gun => ()
                             }
                         },
+                        PlayerState::Digging(ref s) => {
+                            use super::PlayerDiggingDirection::{Up, Down, Left, Right};
+
+                            let (tile, flip_x) = match s.direction {
+                                Up => (0x2D, false),
+                                Down => (0x37, false),
+                                Left => (0x38, true),
+                                Right => (0x38, false)
+                            };
+                            draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, (flip_x, false));
+                        }
                         _ => ()
                     };
                 }
