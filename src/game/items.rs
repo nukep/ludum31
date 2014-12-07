@@ -15,6 +15,12 @@ pub struct Switch {
     release_timeout: u8
 }
 
+impl Switch {
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
+}
+
 pub struct Chest {
     pub triggered_by: Option<u8>,
     pub trigger: Option<u8>,
@@ -27,6 +33,20 @@ pub struct Chest {
     original_y: f32,
     fall_distance: f32,
     fall_phase: f32
+}
+
+impl Chest {
+    pub fn spawn(&mut self) {
+        self.x = self.original_x;
+        self.y = self.original_y;
+        self.visible = true;
+        self.fall_phase = 0.0;
+        self.phase = 0.0;
+    }
+
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
 }
 
 pub struct DynamicItems {
@@ -81,7 +101,7 @@ impl DynamicItems {
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
 
         for chest in self.chests.iter_mut().take_while(|c| c.triggered_by == Some(id) && !c.visible) {
-            chest.visible = true;
+            chest.spawn();
             poof_list.push((chest.x-5.0, chest.y-5.0));
             poof_list.push((chest.x+5.0, chest.y+5.0));
             poof_list.push((chest.x+12.0, chest.y-3.0));
@@ -100,7 +120,7 @@ impl DynamicItems {
         // Switches love triggers
 
         self.switches.iter().filter_map(|switch| {
-            let hit = collision::test_rects((x, y, x+w, y+h), (switch.x, switch.y, switch.x+16.0, switch.y+16.0));
+            let hit = collision::test_rects((x, y, x+w, y+h), switch.get_rect());
 
             if hit { Some(switch) }
             else { None }
@@ -108,11 +128,11 @@ impl DynamicItems {
     }
 
     pub fn try_open_chest(&mut self, x: f32, y: f32, w: f32, h: f32) -> bool {
-        let hit_chests = self.chests.iter().filter_map(|chest| {
-            let hit = collision::test_rects((x, y, x+w, y+h), (chest.x, chest.y, chest.x+16.0, chest.y+16.0));
+        let hit_chests: Vec<&mut Chest> = self.chests.iter_mut().filter_map(|chest| {
+            let hit = collision::test_rects((x, y, x+w, y+h), chest.get_rect());
             if hit { Some(chest) }
             else { None }
-        });
+        }).collect();
         false
     }
 
@@ -141,12 +161,56 @@ impl DynamicItems {
         self.poofs = new_poofs;
     }
 
+    /// Returns (true, _) if items have been moved.
+    /// Returns (_, true) if items have been destroyed.
+    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool) -> (bool, bool) {
+        // Item sliding and crushing occurs here
+        let mut moved = false;
+        let mut destroyed = false;
+
+        let mut poof_list: Vec<(f32, f32)> = Vec::new();
+
+        for chest in self.chests.iter_mut().take_while(|c| c.visible ) {
+            let rect = chest.get_rect();
+            if x_inc {
+                if collision::test_rect_vert_line(rect, x_line) {
+                    chest.x = x_line;
+                    moved = true;
+                }
+            }
+            let new_rect = chest.get_rect();
+            let destroy = if let Some((_, _)) = level.collision_tile(new_rect, (None, None)) { true }
+                else { false };
+
+            if destroy {
+                chest.visible = false;
+                poof_list.push((chest.x, chest.y));
+                destroyed = true;
+            }
+        }
+
+        for poof in poof_list.iter() {
+            let &(x, y) = poof;
+            self.add_poof(x, y);
+        }
+
+        (moved, destroyed)
+    }
+
     pub fn step_falling_chests(&mut self) {
         fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
+        fn curve(x: f32) -> f32 {
+            use std::num::{Float, FloatMath};
+
+            let coeff = 1.4;
+
+            1.0 - FloatMath::sin(((x*coeff)-coeff)*Float::frac_pi_2()) / FloatMath::sin((-coeff)*Float::frac_pi_2())
+        }
 
         for chest in self.chests.iter_mut().take_while(|c| c.visible && c.fall_phase < 1.0) {
-            chest.fall_phase += 0.05;
-            chest.y = lerp(chest.original_y, chest.original_y + chest.fall_distance, chest.fall_phase);
+            chest.fall_phase += 0.03;
+            if chest.fall_phase > 1.0 { chest.fall_phase = 1.0 }
+            chest.y = lerp(chest.original_y, chest.original_y + chest.fall_distance, curve(chest.fall_phase));
         }
     }
 }

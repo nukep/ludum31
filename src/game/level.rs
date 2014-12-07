@@ -86,15 +86,17 @@ impl Level {
 
     /// Direction: (right?, down?)
     /// Returns: new top_left
-    pub fn collision_tile(&self, left_top: (f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
+    pub fn collision_tile(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
         use std::num::Float;
 
-        let (x, y) = left_top;
+        let (x, y, x2, y2) = rect;
+        let (w, h) = (x2-x, y2-y);
+
         let (left, top) = {
             (Float::floor(x / 16.0) as int, Float::floor(y / 16.0) as int)
         };
         let (right, bottom) = {
-            let (mut r, mut b) = (Float::floor((x + 15.0) / 16.0) as int, Float::floor((y + 15.0) / 16.0) as int);
+            let (mut r, mut b) = (Float::floor((x + w-1.0) / 16.0) as int, Float::floor((y + h-1.0) / 16.0) as int);
 
             // Wrapping
             if r >= self.width as int { r -= self.width as int }
@@ -148,6 +150,20 @@ impl Level {
         let (x, y) = coord;
         let (w, h) = self.level_size_as_f32();
         ((x+w) % w, (y+h) % h)
+    }
+
+    pub fn relative_wrap(&self, origin: (f32, f32), coord: (f32, f32)) -> (f32, f32) {
+        let (width, height) = self.level_size_as_f32();
+        let (origin_x, origin_y) = origin;
+        let (coord_x, coord_y) = coord;
+        let (mut new_coord_x, mut new_coord_y) = (coord_x - origin_x, coord_y - origin_y);
+
+        if new_coord_x < -width/2.0 { new_coord_x += width }
+        if new_coord_x >= width/2.0 { new_coord_x -= width }
+        if new_coord_y < -height/2.0 { new_coord_y += height }
+        if new_coord_y >= height/2.0 { new_coord_y -= height }
+
+        (new_coord_x, new_coord_y)
     }
 }
 

@@ -122,7 +122,7 @@ impl PlayerStateStand {
 
         let direction = into_direction(y_delta < 0.0, y_delta > 0.0, x_delta < 0.0, x_delta > 0.0);
 
-        match level.collision_tile((self.x, self.y), direction) {
+        match level.collision_tile(self.get_rect(), direction) {
             Some((x, y)) => {
                 self.x = x;
                 self.y = y;
@@ -130,6 +130,10 @@ impl PlayerStateStand {
             },
             None => false
         }
+    }
+
+    fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
     }
 }
 
@@ -280,6 +284,16 @@ impl GameStepper<Input, GameStepResult> for Game {
 
             let cur_player_is_walking = self.player.is_walking();
 
+            let (moved, destroyed) = if !lock_scrolling {
+                let (lx, ly) = last_player_pos;
+                let (cx, cy) = cur_player_pos;
+                self.scroll(cx-lx, cy-ly);
+
+                self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, self.scroll_y, cx > lx, cy > ly)
+            } else {
+                (false, false)
+            };
+
             if let Some(ref mut audio) = self.audio {
                 match (last_player_is_walking, cur_player_is_walking) {
                     (false, true) => audio.start_walking(),
@@ -287,15 +301,13 @@ impl GameStepper<Input, GameStepResult> for Game {
                     _ => ()
                 };
 
+                if destroyed {
+                    audio.explode();
+                }
+
                 if play_poof_sound {
                     audio.poof();
                 }
-            }
-
-            if !lock_scrolling {
-                let (lx, ly) = last_player_pos;
-                let (cx, cy) = cur_player_pos;
-                self.scroll(cx-lx, cy-ly);
             }
         }
 

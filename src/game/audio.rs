@@ -81,6 +81,19 @@ impl Audio {
         }.iter());
     }
 
+    pub fn explode(&mut self) {
+        let mut lock = self.device.lock();
+        let mut controller = &mut ((*lock).controller);
+
+        controller.set_effect(3, box SweepEffect {
+            freq: (1000.0, 50.0),
+            volume: (0.7, 0.2),
+            duty: (0.5, 0.5),
+            ticks: 60,
+            quantize: 2
+        }.iter());
+    }
+
     pub fn start_walking(&mut self) {
         use std::iter::repeat;
 

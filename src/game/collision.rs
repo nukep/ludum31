@@ -14,3 +14,15 @@ pub fn test_rects(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> bool {
     test_rect_point(b, (ax1, ay1)) || test_rect_point(b, (ax2, ay1)) ||
     test_rect_point(b, (ax1, ay2)) || test_rect_point(b, (ax2, ay2))
 }
+
+pub fn test_rect_vert_line(a: (f32, f32, f32, f32), x: f32) -> bool {
+    let (ax1, ay1, ax2, ay2) = a;
+
+    x >= ax1 && x < ax2
+}
+
+pub fn test_rect_horz_line(a: (f32, f32, f32, f32), y: f32) -> bool {
+    let (ax1, ay1, ax2, ay2) = a;
+
+    y >= ay1 && y < ay2
+}
