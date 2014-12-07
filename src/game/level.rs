@@ -22,6 +22,10 @@ impl TileType {
             5 => false,
             // Blue treasure
             10 => false,
+            // Dirt
+            0x17 => false,
+            0x23 => false,
+            0x3A => false,
             _ => true
         };
         let can_dig = match id {
@@ -29,6 +33,7 @@ impl TileType {
             0x16 => true,
             0x17 => true,
             0x23 => true,
+            0x3A => true,
             _ => false
         };
 
@@ -65,6 +70,12 @@ pub struct Beanstalk {
     pub poof: bool,
 }
 
+pub struct Monster1 {
+    pub x: f32,
+    pub y: f32,
+    pub triggered_by: Option<u8>
+}
+
 pub struct Level {
     pub width: u8,
     pub height: u8,
@@ -72,7 +83,8 @@ pub struct Level {
     tiles: Vec<Tile>,
     pub switches: Vec<Switch>,
     pub chests: Vec<Chest>,
-    pub beanstalks: Vec<Beanstalk>
+    pub beanstalks: Vec<Beanstalk>,
+    pub monsters1: Vec<Monster1>
 }
 
 impl Level {
@@ -147,8 +159,8 @@ impl Level {
     fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
         use std::num::Float;
 
-        let (x, y, x2, y2) = rect;
-        let (w, h) = (x2-x, y2-y);
+        let (x, y) = rect.left_top();
+        let (w, h) = rect.size();
 
         let (left, top) = {
             (Float::floor(x / 16.0) as int, Float::floor(y / 16.0) as int)
@@ -277,6 +289,7 @@ fn parse_from_json(input: &str) -> Level {
     let mut switches: Vec<Switch> = Vec::new();
     let mut chests: Vec<Chest> = Vec::new();
     let mut beanstalks: Vec<Beanstalk> = Vec::new();
+    let mut monsters1: Vec<Monster1> = Vec::new();
 
     for x in objects_json.iter() {
 
@@ -326,10 +339,16 @@ fn parse_from_json(input: &str) -> Level {
                     height: height,
                     triggered_by: triggered_by,
                     poof: poof,
-                })
+                });
             },
             "monster1" => {
+                let triggered_by = parse_property_as_number(properties, "triggered_by");
 
+                monsters1.push(Monster1 {
+                    x: x,
+                    y: y,
+                    triggered_by: triggered_by
+                });
             },
             _ => panic!("Unknown type: {}", typ)
         };
@@ -342,7 +361,8 @@ fn parse_from_json(input: &str) -> Level {
         tiles: tiles,
         switches: switches,
         chests: chests,
-        beanstalks: beanstalks
+        beanstalks: beanstalks,
+        monsters1: monsters1
     }
 }
 

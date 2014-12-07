@@ -167,10 +167,20 @@ impl GameRenderState {
                                 Left => (0x38, true),
                                 Right => (0x38, false)
                             };
-                            draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, (flip_x, false));
+                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false));
                         }
                         _ => ()
                     };
+                }
+
+                // Draw monsters
+                for monster1 in game.items.monsters1.iter().filter(|m| m.visible ) {
+                    let tile = match monster1.phase * 2.0 {
+                        0.0...1.0 => 0x26,
+                        0.0...2.0 => 0x27,
+                        _ => 0x27
+                    };
+                    draw_tile_all(Float::floor(monster1.x), Float::floor(monster1.y), tile, (false, false));
                 }
 
                 // Draw poofs

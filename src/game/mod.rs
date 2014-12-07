@@ -380,6 +380,7 @@ impl GameStepper<Input, GameStepResult> for Game {
 
         self.items.step_poofs();
         self.items.step_chests();
+        self.items.step_monsters();
         {
             let switch_triggers: Vec<u8> = {
                 let switches = match cur_player_pos {
@@ -431,6 +432,7 @@ impl GameStepper<Input, GameStepResult> for Game {
 
                 if got_item {
                     audio.item_get();
+                    audio.poof();
                 }
             }
         }

@@ -57,10 +57,29 @@ pub enum ChestItem {
     Gun
 }
 
+pub struct Monster1 {
+    pub x: f32,
+    pub y: f32,
+    pub visible: bool,
+    pub phase: f32,
+    triggered_by: Option<u8>,
+}
+
+impl Monster1 {
+    pub fn spawn(&mut self) {
+        self.visible = true;
+    }
+
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
+}
+
 pub struct DynamicItems {
     pub poofs: Vec<Poof>,
     pub switches: Vec<Switch>,
-    pub chests: Vec<Chest>
+    pub chests: Vec<Chest>,
+    pub monsters1: Vec<Monster1>
 }
 
 impl DynamicItems {
@@ -98,10 +117,21 @@ impl DynamicItems {
             }
         }).collect();
 
+        let monsters1 = level.monsters1.iter().map(|s| {
+            Monster1 {
+                x: s.x,
+                y: s.y,
+                visible: false,
+                triggered_by: s.triggered_by,
+                phase: 0.0
+            }
+        }).collect();
+
         DynamicItems {
             poofs: Vec::new(),
             switches: switches,
-            chests: chests
+            chests: chests,
+            monsters1: monsters1
         }
     }
 
@@ -117,15 +147,21 @@ impl DynamicItems {
 
         for chest in self.chests.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
             chest.spawn();
-            poof_list.push((chest.x-5.0, chest.y-5.0));
-            poof_list.push((chest.x+5.0, chest.y+5.0));
-            poof_list.push((chest.x+12.0, chest.y-3.0));
+            poof_list.push((chest.x, chest.y));
+            did_something = true;
+        }
+
+        for monster1 in self.monsters1.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
+            monster1.spawn();
+            poof_list.push((monster1.x, monster1.y));
             did_something = true;
         }
 
         for poof in poof_list.iter() {
             let &(x, y) = poof;
-            self.add_poof(x, y);
+            self.add_poof(x-5.0, y-5.0);
+            self.add_poof(x+5.0, y+5.0);
+            self.add_poof(x+12.0, y-3.0);
         }
 
         did_something
@@ -144,15 +180,27 @@ impl DynamicItems {
 
     pub fn try_open_chest(&mut self, rect: (f32, f32, f32, f32)) -> Vec<ChestItem> {
         let mut opened_chest = false;
-        self.chests.iter_mut().filter(|c| c.visible && !c.opened).filter_map(|chest| {
+        let mut triggers: Vec<u8> = Vec::new();
+
+        let items = self.chests.iter_mut().filter(|c| c.visible && !c.opened).filter_map(|chest| {
             let hit = collision::test_rects(rect, chest.get_rect());
             if hit {
                 opened_chest = true;
                 chest.opened = true;
+                match chest.trigger {
+                    Some(trigger) => triggers.push(trigger),
+                    None => ()
+                };
                 Some(chest.contains)
             }
             else { None }
-        }).collect()
+        }).collect();
+
+        for trigger in triggers.iter() {
+            self.trigger(*trigger);
+        }
+
+        items
     }
 
     pub fn add_poof(&mut self, x: f32, y: f32) {
@@ -183,34 +231,61 @@ impl DynamicItems {
     /// Returns (true, _) if items have been moved.
     /// Returns (_, true) if items have been destroyed.
     pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool, x_dec: bool, y_dec: bool) -> (bool, bool) {
+
+        let (width, height) = level.level_size_as_f32();
+        let do_collision = |rect: (f32, f32, f32, f32)| -> ((f32, f32, f32, f32), bool, bool) {
+            let mut moved = false;
+
+            let new_rect = if x_inc {
+                if collision::test_rect_vert_line(rect, x_line, width) {
+                    moved = true;
+                    rect.set_x(level, x_line)
+                } else { rect }
+            } else if x_dec {
+                if collision::test_rect_vert_line(rect, x_line, width) {
+                    moved = true;
+                    rect.set_x(level, (x_line - rect.width() + width) % width)
+                } else { rect}
+            } else { rect };
+
+            let destroy = if let Some((_, _)) = level.collision_tile(new_rect, (None, None)) { true }
+            else { false };
+
+            (new_rect, moved, destroy)
+        };
+
         // Item sliding and crushing occurs here
         let mut moved = false;
         let mut destroyed = false;
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
 
-        let (width, height) = level.level_size_as_f32();
-
         for chest in self.chests.iter_mut().filter(|c| c.visible && !c.is_static ) {
-            let rect = chest.get_rect();
-            if x_inc {
-                if collision::test_rect_vert_line(rect, x_line, width) {
-                    chest.x = x_line;
-                    moved = true;
-                }
-            } else if x_dec {
-                if collision::test_rect_vert_line(rect, x_line, width) {
-                    chest.x = (x_line - 16.0 + width) % width;
-                    moved = true;
-                }
-            }
-            let new_rect = chest.get_rect();
-            let destroy = if let Some((_, _)) = level.collision_tile(new_rect, (None, None)) { true }
-                else { false };
+            let (new_rect, mov, destroy) = do_collision(chest.get_rect());
+
+            chest.x = new_rect.x();
+            chest.y = new_rect.y();
+
+            if mov { moved = true }
 
             if destroy {
                 chest.visible = false;
                 poof_list.push((chest.x, chest.y));
+                destroyed = true;
+            }
+        }
+
+        for monster1 in self.monsters1.iter_mut().filter(|m| m.visible) {
+            let (new_rect, mov, destroy) = do_collision(monster1.get_rect());
+
+            monster1.x = new_rect.x();
+            monster1.y = new_rect.y();
+
+            if mov { moved = true }
+
+            if destroy {
+                monster1.visible = false;
+                poof_list.push((monster1.x, monster1.y));
                 destroyed = true;
             }
         }
@@ -242,6 +317,12 @@ impl DynamicItems {
         for chest in self.chests.iter_mut().filter(|c| c.visible && c.opened && c.phase < 1.0) {
             chest.phase += 0.03;
             if chest.phase > 1.0 { chest.phase = 1.0 }
+        }
+    }
+
+    pub fn step_monsters(&mut self) {
+        for monster1 in self.monsters1.iter_mut().filter(|m| m.visible) {
+            monster1.phase = (monster1.phase + 0.015) % 1.0;
         }
     }
 }
