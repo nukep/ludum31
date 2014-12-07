@@ -43,7 +43,8 @@ pub struct Chest {
     pub triggered_by: Option<u8>,
     pub poof: bool,
     pub is_static: bool,
-    pub fall_distance: f32
+    pub fall_distance: f32,
+    pub contains: String
 }
 
 pub struct Beanstalk {
@@ -256,6 +257,7 @@ fn parse_from_json(input: &str) -> Level {
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
                 let poof = parse_property_as_boolean(properties, "poof");
                 let is_static = parse_property_as_boolean(properties, "static");
+                let contains = properties.get("contains").expect("Requires 'contains'").as_string().expect("Not a JSON string").to_string();
 
                 chests.push(Chest {
                     x: x,
@@ -264,7 +266,8 @@ fn parse_from_json(input: &str) -> Level {
                     triggered_by: triggered_by,
                     poof: poof,
                     is_static: is_static,
-                    fall_distance: height - 16.0
+                    fall_distance: height - 16.0,
+                    contains: contains
                 });
             },
             "beanstalk" => {

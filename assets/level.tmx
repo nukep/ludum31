@@ -5,17 +5,17 @@
  </tileset>
  <layer name="Tile Layer 1" width="28" height="16">
   <data encoding="base64" compression="zlib">
-   eJztUkkKgDAMzBeUutw9iYq4vs+nqxgxlCmtGjw5MKQkzUzTlkgXhmgxypohfq1nX7fti4/4GLtG9PF8b5Hw3DZzjomyX7/5nevSilxXxcCxc8w5ifOEAGkgPTQbHXWvhqTEDM6D9OQfHkBPKFDvmWtu9Gj41Rzt+7zrJ+9pFOvUylWE32N05GOgtTMDNI68BgvAiK5/geo/3VwBJQ8d5Q==
+   eJxjYKAuEGFgaBChspnE2KdPQJ0hUJ0QhCYbgMwQpLP/KAWiUH+jYwmIHNWBEdA+GFsTjTaigX3GUNoQiz9NkdxCLMAWVtjMRPcbA0SOoH50jMs/+Mw0xKGWHIBuBoyvS4RaatqnA6U18aglBqCHlQmUFkPja+NRSwiLIbHFsWARHOLUwMpYsCADIl1gkx/FuDEAvPgd0A==
   </data>
  </layer>
  <objectgroup name="Object Layer 1">
-  <object type="player" x="320" y="160" width="16" height="16"/>
-  <object type="switch" x="280" y="172" width="16" height="16">
+  <object type="player" x="296" y="160" width="16" height="16"/>
+  <object type="switch" x="259" y="172" width="16" height="16">
    <properties>
     <property name="trigger" value="1"/>
    </properties>
   </object>
-  <object type="chest" x="0" y="136" width="16" height="40">
+  <object type="chest" x="16" y="136" width="16" height="40">
    <properties>
     <property name="contains" value="drill"/>
     <property name="poof" value="true"/>
@@ -31,15 +31,16 @@
   </object>
   <object type="chest" x="80" y="160" width="16" height="16">
    <properties>
+    <property name="contains" value="useless"/>
     <property name="poof" value="true"/>
     <property name="static" value="true"/>
     <property name="trigger" value="2"/>
     <property name="triggered_by" value="3"/>
    </properties>
   </object>
-  <object type="chest" x="0" y="96" width="16" height="16">
+  <object type="chest" x="16" y="96" width="16" height="16">
    <properties>
-    <property name="contains" value="nothing"/>
+    <property name="contains" value="useless"/>
     <property name="static" value="true"/>
     <property name="triggered_by" value="1"/>
    </properties>
@@ -51,6 +52,7 @@
   </object>
   <object type="chest" x="48" y="16" width="16" height="16">
    <properties>
+    <property name="contains" value="gun"/>
     <property name="poof" value="true"/>
     <property name="static" value="true"/>
     <property name="triggered_by" value="2"/>

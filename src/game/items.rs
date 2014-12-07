@@ -29,10 +29,12 @@ pub struct Chest {
     pub visible: bool,
     pub phase: f32,
     pub is_static: bool,
+    opened: bool,
     original_x: f32,
     original_y: f32,
     fall_distance: f32,
-    fall_phase: f32
+    fall_phase: f32,
+    contains: ChestItem
 }
 
 impl Chest {
@@ -41,12 +43,17 @@ impl Chest {
         self.y = self.original_y;
         self.visible = true;
         self.fall_phase = 0.0;
-        self.phase = 0.0;
     }
 
     pub fn get_rect(&self) -> (f32, f32, f32, f32) {
         (self.x, self.y, self.x + 16.0, self.y + 16.0)
     }
+}
+
+pub enum ChestItem {
+    UselessPoints,
+    Drill,
+    Gun
 }
 
 pub struct DynamicItems {
@@ -79,7 +86,14 @@ impl DynamicItems {
                 original_x: s.x,
                 original_y: s.y,
                 fall_distance: s.fall_distance,
-                fall_phase: 0.0
+                fall_phase: 0.0,
+                opened: false,
+                contains: match s.contains.as_slice() {
+                    "useless" => ChestItem::UselessPoints,
+                    "drill" => ChestItem::Drill,
+                    "gun" => ChestItem::Gun,
+                    e => panic!("Unknown item: {}", e)
+                }
             }
         }).collect();
 
@@ -93,14 +107,14 @@ impl DynamicItems {
     pub fn trigger(&mut self, id: u8) -> bool {
         let mut did_something = false;
 
-        for switch in self.switches.iter_mut().take_while(|c| c.trigger == id) {
+        for switch in self.switches.iter_mut().filter(|c| c.trigger == id) {
             switch.is_down = true;
             switch.release_timeout = 60;
         }
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
 
-        for chest in self.chests.iter_mut().take_while(|c| c.triggered_by == Some(id) && !c.visible) {
+        for chest in self.chests.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
             chest.spawn();
             poof_list.push((chest.x-5.0, chest.y-5.0));
             poof_list.push((chest.x+5.0, chest.y+5.0));
@@ -127,13 +141,17 @@ impl DynamicItems {
         }).collect()
     }
 
-    pub fn try_open_chest(&mut self, x: f32, y: f32, w: f32, h: f32) -> bool {
-        let hit_chests: Vec<&mut Chest> = self.chests.iter_mut().filter_map(|chest| {
-            let hit = collision::test_rects((x, y, x+w, y+h), chest.get_rect());
-            if hit { Some(chest) }
+    pub fn try_open_chest(&mut self, rect: (f32, f32, f32, f32)) -> Vec<ChestItem> {
+        let mut opened_chest = false;
+        self.chests.iter_mut().filter(|c| c.visible && !c.opened).filter_map(|chest| {
+            let hit = collision::test_rects(rect, chest.get_rect());
+            if hit {
+                opened_chest = true;
+                chest.opened = true;
+                Some(chest.contains)
+            }
             else { None }
-        }).collect();
-        false
+        }).collect()
     }
 
     pub fn add_poof(&mut self, x: f32, y: f32) {
@@ -163,18 +181,25 @@ impl DynamicItems {
 
     /// Returns (true, _) if items have been moved.
     /// Returns (_, true) if items have been destroyed.
-    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool) -> (bool, bool) {
+    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool, x_dec: bool, y_dec: bool) -> (bool, bool) {
         // Item sliding and crushing occurs here
         let mut moved = false;
         let mut destroyed = false;
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
 
-        for chest in self.chests.iter_mut().take_while(|c| c.visible ) {
+        let (width, height) = level.level_size_as_f32();
+
+        for chest in self.chests.iter_mut().filter(|c| c.visible && !c.is_static ) {
             let rect = chest.get_rect();
             if x_inc {
-                if collision::test_rect_vert_line(rect, x_line) {
+                if collision::test_rect_vert_line(rect, x_line, width) {
                     chest.x = x_line;
+                    moved = true;
+                }
+            } else if x_dec {
+                if collision::test_rect_vert_line(rect, x_line, width) {
+                    chest.x = (x_line - 16.0 + width) % width;
                     moved = true;
                 }
             }
@@ -197,7 +222,7 @@ impl DynamicItems {
         (moved, destroyed)
     }
 
-    pub fn step_falling_chests(&mut self) {
+    pub fn step_chests(&mut self) {
         fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
         fn curve(x: f32) -> f32 {
             use std::num::{Float, FloatMath};
@@ -207,10 +232,15 @@ impl DynamicItems {
             1.0 - FloatMath::sin(((x*coeff)-coeff)*Float::frac_pi_2()) / FloatMath::sin((-coeff)*Float::frac_pi_2())
         }
 
-        for chest in self.chests.iter_mut().take_while(|c| c.visible && c.fall_phase < 1.0) {
+        for chest in self.chests.iter_mut().filter(|c| c.visible && c.fall_phase < 1.0) {
             chest.fall_phase += 0.03;
             if chest.fall_phase > 1.0 { chest.fall_phase = 1.0 }
             chest.y = lerp(chest.original_y, chest.original_y + chest.fall_distance, curve(chest.fall_phase));
+        }
+
+        for chest in self.chests.iter_mut().filter(|c| c.visible && c.opened && c.phase < 1.0) {
+            chest.phase += 0.03;
+            if chest.phase > 1.0 { chest.phase = 1.0 }
         }
     }
 }

@@ -32,6 +32,12 @@ fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool
     (direction_right, direction_down)
 }
 
+pub enum PlayerItem {
+    None,
+    Drill,
+    Gun
+}
+
 pub enum PlayerStandDirection {
     Left,
     Right
@@ -144,7 +150,8 @@ pub enum PlayerState {
 }
 
 pub struct Player {
-    state: PlayerState
+    state: PlayerState,
+    item: PlayerItem
 }
 
 impl Player {
@@ -158,7 +165,8 @@ impl Player {
                 vel_x: 0.0,
                 vel_y: 0.0,
                 running_cycle: None
-            })
+            }),
+            item: PlayerItem::None
         }
     }
 
@@ -181,6 +189,11 @@ impl Player {
             },
             _ => panic!("Unimplemented")
         }
+    }
+
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        let (x, y) = self.get_pos();
+        (x, y, x + 16.0, y + 16.0)
     }
 
     pub fn is_walking(&self) -> bool {
@@ -263,10 +276,32 @@ impl GameStepper<Input, GameStepResult> for Game {
         let last_player_pos = self.player.get_pos();
         let last_player_is_walking = self.player.is_walking();
         self.player.tick(&self.level, up, down, left, right);
+        let cur_player_pos = self.player.get_pos();
+
+        let got_item = if down {
+            let items = self.items.try_open_chest(self.player.get_rect());
+
+            for item in items.iter() {
+                use self::items::ChestItem;
+                match item {
+                    &ChestItem::Drill => {
+                        self.player.item = PlayerItem::Drill;
+                    },
+                    &ChestItem::Gun => {
+                        self.player.item = PlayerItem::Gun;
+                    },
+                    _ => ()
+                }
+            }
+
+            items.len() > 0
+        } else {
+            false
+        };
+
         self.items.step_poofs();
-        self.items.step_falling_chests();
+        self.items.step_chests();
         {
-            let cur_player_pos = self.player.get_pos();
             let switch_triggers: Vec<u8> = {
                 let switches = match cur_player_pos {
                     (x, y) => self.items.switch_hit_test(x, y, 16.0, 16.0)
@@ -287,9 +322,15 @@ impl GameStepper<Input, GameStepResult> for Game {
             let (moved, destroyed) = if !lock_scrolling {
                 let (lx, ly) = last_player_pos;
                 let (cx, cy) = cur_player_pos;
-                self.scroll(cx-lx, cy-ly);
+                let (rel_x, rel_y) = self.level.relative_wrap(last_player_pos, cur_player_pos);
 
-                self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, self.scroll_y, cx > lx, cy > ly)
+                match (rel_x, rel_y) {
+                    (0.0, 0.0) => (false, false),
+                    (sx, sy) => {
+                        self.scroll(sx, sy);
+                        self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, self.scroll_y, rel_x > 0.0, rel_y > 0.0, rel_x < 0.0, rel_y < 0.0)
+                    }
+                }
             } else {
                 (false, false)
             };
@@ -307,6 +348,10 @@ impl GameStepper<Input, GameStepResult> for Game {
 
                 if play_poof_sound {
                     audio.poof();
+                }
+
+                if got_item {
+                    audio.item_get();
                 }
             }
         }

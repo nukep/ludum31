@@ -114,7 +114,7 @@ impl GameRenderState {
                 }
 
                 // Draw chests
-                for chest in game.items.chests.iter().take_while(|t| t.visible) {
+                for chest in game.items.chests.iter().filter(|t| t.visible) {
                     let tile_offset = match chest.is_static {
                         true => 0,
                         false => 5
@@ -132,7 +132,7 @@ impl GameRenderState {
 
                 // Draw player
                 {
-                    use super::PlayerState;
+                    use super::{PlayerState, PlayerItem};
 
                     match game.player.state {
                         PlayerState::Stand(ref s) => {
@@ -144,6 +144,19 @@ impl GameRenderState {
                                 _ => 3
                             };
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip());
+                            match game.player.item {
+                                PlayerItem::None => (),
+                                PlayerItem::Drill => {
+                                    let tile = 0x23;
+                                    let (flip_x, _) = s.direction.get_flip();
+                                    let x_offset = match flip_x {
+                                        false => 12.0,
+                                        true => -12.0
+                                    };
+                                    draw_tile_all(Float::floor(s.x)+x_offset, Float::floor(s.y)+3.0, tile, s.direction.get_flip());
+                                },
+                                PlayerItem::Gun => ()
+                            }
                         },
                         _ => ()
                     };
