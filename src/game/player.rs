@@ -459,7 +459,7 @@ impl Player {
 
     pub fn try_climb_beanstalk(&mut self, x: f32, y: f32, beanstalk_y: f32, beanstalk_height: f32) {
         let next_state: Option<PlayerState> = match self.state {
-            PlayerState::Stand(ref s) => {
+            PlayerState::Stand(ref _s) => {
                 Some(PlayerState::Climbing(PlayerStateClimbing {
                     x: x,
                     y: y,

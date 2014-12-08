@@ -464,8 +464,8 @@ impl DynamicItems {
 
     /// Returns (true, _) if items have been moved.
     /// Returns (_, true) if items have been destroyed.
-    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool, x_dec: bool, y_dec: bool) -> (bool, bool) {
-        let (width, height) = level.level_size_as_f32();
+    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
+        let (width, _) = level.level_size_as_f32();
 
         let do_collision = |rect: (f32, f32, f32, f32)| -> ((f32, f32, f32, f32), bool, bool) {
             let mut moved = false;
@@ -535,11 +535,12 @@ impl DynamicItems {
     fn step_chests(&mut self) {
         fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
         fn curve(x: f32) -> f32 {
-            use std::num::{Float, FloatMath};
+            use std::num::FloatMath;
+            use std::f32::consts::FRAC_PI_2;
 
             let coeff = 1.4;
 
-            1.0 - FloatMath::sin(((x*coeff)-coeff)*Float::frac_pi_2()) / FloatMath::sin((-coeff)*Float::frac_pi_2())
+            1.0 - FloatMath::sin(((x*coeff)-coeff)*FRAC_PI_2) / FloatMath::sin((-coeff)*FRAC_PI_2)
         }
 
         for chest in self.chests.iter_mut().filter(|c| c.visible && c.fall_phase < 1.0) {

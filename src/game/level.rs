@@ -203,7 +203,7 @@ impl Level {
     }
 
     fn is_tile_inside(&self, rect: (f32, f32, f32, f32), tile_id: u16) -> Option<(u8, u8)> {
-        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+        let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
             if (*tile).tile_type.id-1 == tile_id {
                 return Some((x as u8, y as u8))
@@ -217,7 +217,7 @@ impl Level {
     }
 
     pub fn has_non_blocking_tile(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+        let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
             if !(*tile).tile_type.is_blocking {
                 return Some((x as u8, y as u8))
@@ -276,7 +276,7 @@ impl<'a> Iterator<(u8, u8, &'a Tile)> for LevelTileIterator<'a> {
 }
 
 fn parse_from_json(input: &str) -> Level {
-    use std::str::{from_utf8, FromStr};
+    use std::str::FromStr;
     use serialize::json::Json;
 
 

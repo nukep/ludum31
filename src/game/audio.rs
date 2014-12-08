@@ -1,8 +1,7 @@
 use sdl2;
 use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioDevice};
 use synth::Controller;
-use synth::ChannelEffectOut;
-use synth::effect::{SweepEffect, RandomEffect};
+use synth::effect::{SweepEffect};
 
 /// An empty struct that initializes and quits the SDL subsystems in RAII fashion
 struct AudioSubsystem;
@@ -25,7 +24,7 @@ impl Audio {
         let subsystem = AudioSubsystem::init();
         let freq = 44100;
 
-        let mut controller = Controller::new(freq as f32, 1.0/60.0);
+        let controller = Controller::new(freq as f32, 1.0/60.0);
 
         let desired_spec = AudioSpecDesired {
             freq: freq,

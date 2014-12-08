@@ -1,7 +1,7 @@
 pub fn test_rect_point(a: (f32, f32, f32, f32), b: (f32, f32)) -> bool {
     let (ax1, ay1, ax2, ay2) = a;
     let (bx, by) = b;
-    
+
     assert!(ax1 >= 0.0 && ay1 >= 0.0 && ax2 >= ax1 && ay2 >= ay1);
     assert!(bx >= 0.0 && by >= 0.0);
 
@@ -19,13 +19,7 @@ pub fn test_rects(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> bool {
 }
 
 pub fn test_rect_vert_line(a: (f32, f32, f32, f32), x: f32, width: f32) -> bool {
-    let (ax1, ay1, ax2, ay2) = a;
+    let (ax1, _, ax2, _) = a;
 
     (x >= ax1 && x < ax2) || (x+width >= ax1 && x+width < ax2)
-}
-
-pub fn test_rect_horz_line(a: (f32, f32, f32, f32), y: f32, height: f32) -> bool {
-    let (ax1, ay1, ax2, ay2) = a;
-
-    (y >= ay1 && y < ay2) || (y+height >= ay1 && y+height < ay2)
 }

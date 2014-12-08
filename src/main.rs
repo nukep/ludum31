@@ -64,10 +64,10 @@ fn main() {
         Err(e) => panic!("{}", e)
     };
 
-    let mut platform = match Platform::new(game, render_ctx) {
+    let platform = match Platform::new(game, render_ctx) {
         Ok(ctx) => ctx,
         Err(e) => panic!("{}", e)
     };
 
-    platform.run();
+    let _game = platform.run();
 }

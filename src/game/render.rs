@@ -75,10 +75,10 @@ impl GameRenderState {
                             .scale(1.0, -1.0, 1.0);
                     }
                     if rotate_90 {
-                        use std::num::Float;
+                        use std::f32::consts::FRAC_PI_2;
                         model = model
                         .translate(1.0, 0.0, 0.0)
-                        .rotate_z(Float::frac_pi_2());
+                        .rotate_z(FRAC_PI_2);
                     }
                     uniform.set_mat4(u_model, model.as_fixed());
                     vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
@@ -161,7 +161,7 @@ impl GameRenderState {
                                 _ => 3
                             };
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip(), false);
-                            if let Some(ref gun) = game.player.gun {
+                            if let Some(_) = game.player.gun {
                                 let tile = 0x3B;
 
                                 let (flip_x, _) = s.direction.get_flip();

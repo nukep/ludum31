@@ -70,7 +70,6 @@ impl GameStepper<Input, GameStepResult> for Game {
     fn step(&mut self, input: &Input) -> PlatformStepResult<GameStepResult> {
         use game_platforms::PlatformStepResult::{Continue, Exit};
         use sdl2::keycode::KeyCode;
-        use cgmath::ToMatrix4;
 
         if input.exit_request() {
             return Exit;
@@ -185,16 +184,14 @@ impl GameStepper<Input, GameStepResult> for Game {
 
             let cur_player_is_walking = self.player.is_walking();
 
-            let (moved, destroyed) = if !lock_scrolling {
-                let (lx, ly) = last_player_pos;
-                let (cx, cy) = cur_player_pos;
+            let (_moved, destroyed) = if !lock_scrolling {
                 let (rel_x, rel_y) = self.level.relative_wrap(last_player_pos, cur_player_pos);
 
                 match (rel_x, rel_y) {
                     (0.0, 0.0) => (false, false),
-                    (sx, sy) => {
+                    (sx, _sy) => {
                         self.scroll(sx, 0.0);
-                        self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, self.scroll_y, rel_x > 0.0, rel_y > 0.0, rel_x < 0.0, rel_y < 0.0)
+                        self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, rel_x > 0.0, rel_x < 0.0)
                     }
                 }
             } else {
