@@ -155,7 +155,7 @@
                  "type":"monster1",
                  "visible":true,
                  "width":16,
-                 "x":112,
+                 "x":128,
                  "y":192
                 }, 
                 {
@@ -185,7 +185,7 @@
                  "type":"monster1",
                  "visible":true,
                  "width":16,
-                 "x":112,
+                 "x":128,
                  "y":208
                 }, 
                 {

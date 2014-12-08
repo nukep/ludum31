@@ -157,8 +157,15 @@ impl GameRenderState {
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip());
                             match game.player.item {
                                 PlayerItem::None => (),
-                                PlayerItem::Drill => {
-                                    let tile = 0x23;
+                                PlayerItem::Drill(ref drill) => {
+                                    let tile = match drill.phase * 4.0 {
+                                        0.0...1.0 => 0x23,
+                                        1.0...2.0 => 0x24,
+                                        2.0...3.0 => 0x25,
+                                        3.0...4.0 => 0x36,
+                                        _ => 0x36
+                                    };
+
                                     let (flip_x, _) = s.direction.get_flip();
                                     let x_offset = match flip_x {
                                         false => 12.0,

@@ -59,7 +59,7 @@
     <property name="triggered_by" value="2"/>
    </properties>
   </object>
-  <object type="monster1" x="112" y="192" width="16" height="16">
+  <object type="monster1" x="128" y="192" width="16" height="16">
    <properties>
     <property name="poof" value="true"/>
     <property name="triggered_by" value="3"/>
@@ -71,7 +71,7 @@
     <property name="triggered_by" value="2"/>
    </properties>
   </object>
-  <object type="monster1" x="112" y="208" width="16" height="16">
+  <object type="monster1" x="128" y="208" width="16" height="16">
    <properties>
     <property name="poof" value="true"/>
     <property name="triggered_by" value="3"/>

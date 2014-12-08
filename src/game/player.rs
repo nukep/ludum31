@@ -20,8 +20,12 @@ fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool
 
 pub enum PlayerItem {
     None,
-    Drill,
+    Drill(PlayerItemDrill),
     Gun
+}
+
+pub struct PlayerItemDrill {
+    pub phase: f32
 }
 
 pub enum PlayerStandDirection {
@@ -264,7 +268,7 @@ impl Player {
                 s.apply_gravity(level);
                 s.run(level, left, right);
 
-                let has_drill = if let PlayerItem::Drill = self.item { true } else { false };
+                let has_drill = if let PlayerItem::Drill(_) = self.item { true } else { false };
 
                 if has_drill && down {
                     match level.is_dirt_entrance_below(s.get_rect()) {
@@ -290,11 +294,22 @@ impl Player {
             }
         };
 
+        self.tick_item();
+
         match next_state {
             Some(s) => {
                 self.state = s;
             },
             None => ()
+        }
+    }
+
+    fn tick_item(&mut self) {
+        match self.item {
+            PlayerItem::Drill(ref mut drill) => {
+                drill.phase = (drill.phase + 0.1) % 1.0;
+            },
+            _ => ()
         }
     }
 
@@ -328,5 +343,11 @@ impl Player {
             },
             _ => false
         }
+    }
+
+    pub fn add_drill(&mut self) {
+        self.item = PlayerItem::Drill(PlayerItemDrill {
+            phase: 0.0
+        });
     }
 }

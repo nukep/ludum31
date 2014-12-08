@@ -93,17 +93,16 @@ impl GameStepper<Input, GameStepResult> for Game {
 
             for item in items.iter() {
                 use self::items::ChestItem;
-                use self::player::PlayerItem;
+
                 match item {
                     &ChestItem::Drill => {
-                        self.player.item = PlayerItem::Drill;
-                        self.items.add_poof(px+5.0, py+5.0);
+                        self.player.add_drill();
                     },
-                    &ChestItem::Gun => {
-                        self.player.item = PlayerItem::Gun;
-                    },
+                    &ChestItem::Gun => (),
                     _ => ()
                 }
+
+                self.items.add_poof(px+5.0, py+5.0);
             }
 
             items.len() > 0
