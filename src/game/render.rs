@@ -143,7 +143,7 @@ impl GameRenderState {
 
                 // Draw player
                 {
-                    use super::{PlayerState, PlayerItem};
+                    use super::player::{PlayerState, PlayerItem};
 
                     match game.player.state {
                         PlayerState::Stand(ref s) => {
@@ -170,7 +170,7 @@ impl GameRenderState {
                             }
                         },
                         PlayerState::Digging(ref s) => {
-                            use super::PlayerDiggingDirection::{Up, Down, Left, Right};
+                            use super::player::PlayerDiggingDirection::{Up, Down, Left, Right};
 
                             let drill_tile: u16 = 0x23;
 
