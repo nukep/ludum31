@@ -5,7 +5,7 @@
  </tileset>
  <layer name="Tile Layer 1" width="28" height="16">
   <data encoding="base64" compression="zlib">
-   eJxjYKAuEGFgaBChspnE2KdPQJ0hUJ0QhCYbgMwQpLP/KAWiUH+jYwmIHNWBEdA+GFsTjTaigX3GUNoQiz9NkdxCLMAWVtjMRPcbA0SOoH5Y+oO5F5d/8JlpiEMtOQDdDBhflwi11LRPB0pr4lFLDEAPKxMoLYbG18ajlhAWQ2KLY8EiOMSpgZWxYBEc4rTCggyIdEhts63ojAGkSSDx
+   eJy9UtsOQDAM7S9MZrx7RGTMi6/z6SaIZdqpKCc5WXN6bwYgCw0wa+GanH7dTZz1cRaxuVhzMv+qn/d7i3yfO2a5+cTR+34JnziG/bXInmNiFgrYrbg1R0Z++AczYpe7mjYR/wRY/qG1zHipfo1Qv/BOLrBNpNVwvatDNIwmsAuEmtAlWCHUhP4VFZz/ULr29DMX5rchBg==
   </data>
  </layer>
  <objectgroup name="Object Layer 1">
@@ -23,13 +23,13 @@
     <property name="triggered_by" value="1"/>
    </properties>
   </object>
-  <object type="beanstalk" x="80" y="0" width="16" height="160">
+  <object type="beanstalk" x="64" y="0" width="16" height="176">
    <properties>
     <property name="poof" value="true"/>
     <property name="triggered_by" value="2"/>
    </properties>
   </object>
-  <object type="chest" x="80" y="160" width="16" height="16">
+  <object type="chest" x="64" y="160" width="16" height="16">
    <properties>
     <property name="contains" value="useless"/>
     <property name="poof" value="true"/>
@@ -50,11 +50,12 @@
     <property name="contains" value="useless"/>
    </properties>
   </object>
-  <object type="chest" x="48" y="16" width="16" height="16">
+  <object type="chest" x="32" y="16" width="16" height="16">
    <properties>
     <property name="contains" value="gun"/>
     <property name="poof" value="true"/>
     <property name="static" value="true"/>
+    <property name="trigger" value="4"/>
     <property name="triggered_by" value="2"/>
    </properties>
   </object>
@@ -64,7 +65,7 @@
     <property name="triggered_by" value="3"/>
    </properties>
   </object>
-  <object type="monster1" x="64" y="16" width="16" height="16">
+  <object type="monster1" x="48" y="16" width="16" height="16">
    <properties>
     <property name="poof" value="true"/>
     <property name="triggered_by" value="2"/>
@@ -74,6 +75,36 @@
    <properties>
     <property name="poof" value="true"/>
     <property name="triggered_by" value="3"/>
+   </properties>
+  </object>
+  <object type="monster2" x="208" y="80" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="4"/>
+   </properties>
+  </object>
+  <object type="monster2" x="176" y="80" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="4"/>
+   </properties>
+  </object>
+  <object type="monster2" x="192" y="112" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="4"/>
+   </properties>
+  </object>
+  <object type="monster2" x="160" y="112" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="4"/>
+   </properties>
+  </object>
+  <object type="monster2" x="192" y="160" width="16" height="16">
+   <properties>
+    <property name="poof" value="true"/>
+    <property name="triggered_by" value="4"/>
    </properties>
   </object>
  </objectgroup>

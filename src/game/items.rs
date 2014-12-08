@@ -75,11 +75,54 @@ impl Monster1 {
     }
 }
 
+pub struct Monster2 {
+    pub original_x: f32,
+    pub original_y: f32,
+    pub x: f32,
+    pub y: f32,
+    pub visible: bool,
+    pub phase: f32,
+    move_phase: f32,
+    triggered_by: Option<u8>,
+}
+
+impl Monster2 {
+    pub fn spawn(&mut self) {
+        self.visible = true;
+        self.x = self.original_x;
+        self.y = self.original_y;
+    }
+
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
+}
+
+pub struct Beanstalk {
+    pub x: f32,
+    pub y: f32,
+    pub height: uint,
+    pub visible: bool,
+    triggered_by: Option<u8>,
+}
+
+impl Beanstalk {
+    pub fn spawn(&mut self) {
+        self.visible = true;
+    }
+
+    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + self.height as f32 * 16.0)
+    }
+}
+
 pub struct DynamicItems {
     pub poofs: Vec<Poof>,
     pub switches: Vec<Switch>,
     pub chests: Vec<Chest>,
-    pub monsters1: Vec<Monster1>
+    pub monsters1: Vec<Monster1>,
+    pub monsters2: Vec<Monster2>,
+    pub beanstalks: Vec<Beanstalk>
 }
 
 impl DynamicItems {
@@ -127,11 +170,36 @@ impl DynamicItems {
             }
         }).collect();
 
+        let monsters2 = level.monsters2.iter().map(|s| {
+            Monster2 {
+                original_x: s.x,
+                original_y: s.y,
+                x: s.x,
+                y: s.y,
+                visible: false,
+                triggered_by: s.triggered_by,
+                phase: 0.0,
+                move_phase: 0.0
+            }
+        }).collect();
+
+        let beanstalks = level.beanstalks.iter().map(|s| {
+            Beanstalk {
+                x: s.x,
+                y: s.y,
+                height: s.height,
+                visible: false,
+                triggered_by: s.triggered_by
+            }
+        }).collect();
+
         DynamicItems {
             poofs: Vec::new(),
             switches: switches,
             chests: chests,
-            monsters1: monsters1
+            monsters1: monsters1,
+            monsters2: monsters2,
+            beanstalks: beanstalks
         }
     }
 
@@ -154,6 +222,20 @@ impl DynamicItems {
         for monster1 in self.monsters1.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
             monster1.spawn();
             poof_list.push((monster1.x, monster1.y));
+            did_something = true;
+        }
+
+        for monster2 in self.monsters2.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
+            monster2.spawn();
+            poof_list.push((monster2.x, monster2.y));
+            did_something = true;
+        }
+
+        for beanstalk in self.beanstalks.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
+            beanstalk.spawn();
+            for y in range(0u, beanstalk.height) {
+                poof_list.push((beanstalk.x, beanstalk.y + y as f32 * 16.0));
+            }
             did_something = true;
         }
 
@@ -231,8 +313,8 @@ impl DynamicItems {
     /// Returns (true, _) if items have been moved.
     /// Returns (_, true) if items have been destroyed.
     pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, y_line: f32, x_inc: bool, y_inc: bool, x_dec: bool, y_dec: bool) -> (bool, bool) {
-
         let (width, height) = level.level_size_as_f32();
+
         let do_collision = |rect: (f32, f32, f32, f32)| -> ((f32, f32, f32, f32), bool, bool) {
             let mut moved = false;
 
@@ -323,6 +405,20 @@ impl DynamicItems {
     pub fn step_monsters(&mut self) {
         for monster1 in self.monsters1.iter_mut().filter(|m| m.visible) {
             monster1.phase = (monster1.phase + 0.015) % 1.0;
+        }
+        for monster2 in self.monsters2.iter_mut().filter(|m| m.visible) {
+            fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
+
+            monster2.phase = (monster2.phase + 0.015) % 1.0;
+            monster2.move_phase = (monster2.move_phase + 0.005) % 1.0;
+
+            let p = match monster2.move_phase*2.0 {
+                e @ 0.0...1.0 => e,
+                e @ 1.0...2.0 => 1.0-(e-1.0),
+                _ => 0.0
+            };
+
+            monster2.x = lerp(monster2.original_x - 16.0, monster2.original_x + 16.0, p);
         }
     }
 }

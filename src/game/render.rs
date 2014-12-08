@@ -113,6 +113,17 @@ impl GameRenderState {
                     draw_tile_all(Float::floor(switch.x), Float::floor(switch.y), tile, (false, false));
                 }
 
+                // Draw beanstalks
+                for beanstalk in game.items.beanstalks.iter().filter(|t| t.visible) {
+                    for y in range(0, beanstalk.height) {
+                        let tile = match y % 2 {
+                            0 => 0x0E,
+                            _ => 0x0F
+                        };
+                        draw_tile_all(Float::floor(beanstalk.x), Float::floor(beanstalk.y + y as f32 * 16.0), tile, (false, false));
+                    }
+                }
+
                 // Draw chests
                 for chest in game.items.chests.iter().filter(|t| t.visible) {
                     let tile_offset = match chest.is_static {
@@ -161,6 +172,8 @@ impl GameRenderState {
                         PlayerState::Digging(ref s) => {
                             use super::PlayerDiggingDirection::{Up, Down, Left, Right};
 
+                            let drill_tile: u16 = 0x23;
+
                             let (tile, flip_x) = match s.direction {
                                 Up => (0x2D, false),
                                 Down => (0x37, false),
@@ -168,8 +181,11 @@ impl GameRenderState {
                                 Right => (0x38, false)
                             };
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false));
+                        },
+                        PlayerState::Emerging(ref s) => {
+                            let tile = 0x3A;
+                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (true, false));
                         }
-                        _ => ()
                     };
                 }
 
@@ -181,6 +197,15 @@ impl GameRenderState {
                         _ => 0x27
                     };
                     draw_tile_all(Float::floor(monster1.x), Float::floor(monster1.y), tile, (false, false));
+                }
+
+                for monster2 in game.items.monsters2.iter().filter(|m| m.visible ) {
+                    let tile = match monster2.phase * 2.0 {
+                        0.0...1.0 => 0x28,
+                        0.0...2.0 => 0x29,
+                        _ => 0x27
+                    };
+                    draw_tile_all(Float::floor(monster2.x), Float::floor(monster2.y), tile, (false, false));
                 }
 
                 // Draw poofs

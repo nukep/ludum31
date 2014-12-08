@@ -18,10 +18,6 @@ impl TileType {
     pub fn from_id(id: u16) -> TileType {
         let is_blocking = match id {
             0 => false,
-            // Brown treasure
-            5 => false,
-            // Blue treasure
-            10 => false,
             // Dirt
             0x17 => false,
             0x23 => false,
@@ -65,12 +61,18 @@ pub struct Chest {
 pub struct Beanstalk {
     pub x: f32,
     pub y: f32,
-    pub height: f32,
+    pub height: uint,
     pub triggered_by: Option<u8>,
     pub poof: bool,
 }
 
 pub struct Monster1 {
+    pub x: f32,
+    pub y: f32,
+    pub triggered_by: Option<u8>
+}
+
+pub struct Monster2 {
     pub x: f32,
     pub y: f32,
     pub triggered_by: Option<u8>
@@ -84,7 +86,8 @@ pub struct Level {
     pub switches: Vec<Switch>,
     pub chests: Vec<Chest>,
     pub beanstalks: Vec<Beanstalk>,
-    pub monsters1: Vec<Monster1>
+    pub monsters1: Vec<Monster1>,
+    pub monsters2: Vec<Monster2>
 }
 
 impl Level {
@@ -141,17 +144,27 @@ impl Level {
         }
     }
 
-    pub fn collision_tile_digging(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
+    pub fn collision_tile_digging(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>), get_emerge: bool) -> Option<(f32, f32, bool)> {
         let (x, y, _, _) = rect;
 
         let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
 
         let nudge = tiles.iter().any(|&(t, _, _)| !t.tile_type.can_dig);
+        let emerge_hit: Vec<(int, int)> = tiles.iter().filter_map(|&(t, x, y)| {
+            if t.tile_type.id == 0x16 { Some((x, y)) }
+            else { None }
+        }).collect();
 
-        if nudge {
-            Some(Level::nudge(x, y, left_top, right_bottom, direction))
+        if get_emerge && emerge_hit.len() >= 1 {
+            let (x, y) = emerge_hit[0];
+            Some((x as f32 * 16.0, y as f32 * 16.0, true))
         } else {
-            None
+            if nudge {
+                let (x, y) = Level::nudge(x, y, left_top, right_bottom, direction);
+                Some((x, y, false))
+            } else {
+                None
+            }
         }
     }
 
@@ -290,6 +303,7 @@ fn parse_from_json(input: &str) -> Level {
     let mut chests: Vec<Chest> = Vec::new();
     let mut beanstalks: Vec<Beanstalk> = Vec::new();
     let mut monsters1: Vec<Monster1> = Vec::new();
+    let mut monsters2: Vec<Monster2> = Vec::new();
 
     for x in objects_json.iter() {
 
@@ -336,7 +350,7 @@ fn parse_from_json(input: &str) -> Level {
                 beanstalks.push(Beanstalk {
                     x: x,
                     y: y,
-                    height: height,
+                    height: (height / 16.0) as uint,
                     triggered_by: triggered_by,
                     poof: poof,
                 });
@@ -345,6 +359,15 @@ fn parse_from_json(input: &str) -> Level {
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
 
                 monsters1.push(Monster1 {
+                    x: x,
+                    y: y,
+                    triggered_by: triggered_by
+                });
+            },
+            "monster2" => {
+                let triggered_by = parse_property_as_number(properties, "triggered_by");
+
+                monsters2.push(Monster2 {
                     x: x,
                     y: y,
                     triggered_by: triggered_by
@@ -362,7 +385,8 @@ fn parse_from_json(input: &str) -> Level {
         switches: switches,
         chests: chests,
         beanstalks: beanstalks,
-        monsters1: monsters1
+        monsters1: monsters1,
+        monsters2: monsters2
     }
 }
 

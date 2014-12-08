@@ -151,7 +151,7 @@ pub struct PlayerStateDigging {
 }
 
 impl PlayerStateDigging {
-    fn dig(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) {
+    fn dig(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) -> Option<PlayerState> {
         let speed = 2.0;
         let (x, y, direction) = if up {
             self.direction = PlayerDiggingDirection::Up;
@@ -175,16 +175,29 @@ impl PlayerStateDigging {
 
         match direction {
             Some(direction) => {
-                match level.collision_tile_digging(self.get_rect(), direction) {
-                    Some((x, y)) => {
-                        self.x = x;
-                        self.y = y;
+                match level.collision_tile_digging(self.get_rect(), direction, up) {
+                    Some((x, y, emerge_hit)) => {
+                        if emerge_hit {
+                            Some(PlayerState::Emerging(PlayerStateEmerging {
+                                from_x: nx,
+                                from_y: ny,
+                                to_x: x - 16.0,
+                                to_y: y - 16.0,
+                                x: nx,
+                                y: ny,
+                                phase: 0.0
+                            }))
+                        } else {
+                            self.x = x;
+                            self.y = y;
+                            None
+                        }
                     },
-                    None => ()
+                    None => None
                 }
             },
-            None => ()
-        };
+            None => None
+        }
     }
 
     fn get_rect(&self) -> (f32, f32, f32, f32) {
@@ -192,10 +205,50 @@ impl PlayerStateDigging {
     }
 }
 
+/// When the player comes out of the dirt
+/// Digging -> Emerging -> Stand
+pub struct PlayerStateEmerging {
+    from_x: f32,
+    from_y: f32,
+    to_x: f32,
+    to_y: f32,
+    x: f32,
+    y: f32,
+    phase: f32
+}
+
+impl PlayerStateEmerging {
+    pub fn tick(&mut self) -> Option<PlayerState> {
+        self.phase += 0.04;
+        if self.phase >= 1.0 {
+            Some(PlayerState::Stand(PlayerStateStand {
+                direction: PlayerStandDirection::Left,
+                x: self.to_x,
+                y: self.to_y,
+                vel_x: 0.0,
+                vel_y: 0.0,
+                running_cycle: None
+            }))
+        } else {
+            use std::num::{Float, FloatMath};
+
+            fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
+
+            let coeff = 2.3;
+            let y_phase = FloatMath::sin(self.phase * coeff) / FloatMath::sin(coeff);
+            let x_phase = self.phase.powf(3.0);
+
+            self.x = lerp(self.from_x, self.to_x, x_phase);
+            self.y = lerp(self.from_y, self.to_y, y_phase);
+            None
+        }
+    }
+}
+
 pub enum PlayerState {
     Stand(PlayerStateStand),
     Digging(PlayerStateDigging),
-    Climbing(int)
+    Emerging(PlayerStateEmerging)
 }
 
 pub struct Player {
@@ -220,16 +273,26 @@ impl Player {
     }
 
     pub fn tick(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) {
-        match self.state {
+        let next_state: Option<PlayerState> = match self.state {
             PlayerState::Stand(ref mut s) => {
                 s.apply_gravity(level);
                 s.run(level, left, right);
+                None
             },
             PlayerState::Digging(ref mut s) => {
-                s.dig(level, up, down, left, right);
+                s.dig(level, up, down, left, right)
             },
-            _ => ()
+            PlayerState::Emerging(ref mut s) => {
+                s.tick()
+            }
         };
+
+        match next_state {
+            Some(s) => {
+                self.state = s;
+            },
+            None => ()
+        }
     }
 
     pub fn get_pos(&self) -> (f32, f32) {
@@ -242,7 +305,9 @@ impl Player {
             PlayerState::Digging(ref s) => {
                 (Float::floor(s.x), Float::floor(s.y))
             },
-            _ => panic!("Unimplemented")
+            PlayerState::Emerging(ref s) => {
+                (Float::floor(s.x), Float::floor(s.y))
+            }
         }
     }
 
