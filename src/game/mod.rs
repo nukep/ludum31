@@ -15,6 +15,7 @@ mod items;
 mod level;
 mod rect;
 mod player;
+mod wrapping;
 pub mod render;
 
 pub struct Game {
@@ -59,7 +60,7 @@ impl Game {
     fn scroll(&mut self, x: f32, y: f32) {
         let scroll_x = self.scroll_x + x;
         let scroll_y = self.scroll_y + y;
-        let (nx, ny) = self.level.wrap_coordinates((scroll_x, scroll_y));
+        let (nx, ny) = self.level.get_screen().wrap_coord((scroll_x, scroll_y));
         self.scroll_x = nx;
         self.scroll_y = ny;
     }
@@ -100,7 +101,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             }
         }
 
-        self.player.tick(&self.level, up, down, left, right);
+        self.player.tick(&self.level.get_screen(), self.level.get_tiles(), up, down, left, right);
         let cur_player_pos = self.player.get_pos();
 
         let got_item = if new_down {
@@ -128,9 +129,9 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        self.items.step(&self.level);
+        self.items.step(&self.level.get_screen());
 
-        self.items.bullet_item_collision(&self.level);
+        self.items.bullet_item_collision(self.level.get_tiles());
 
         let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
             self.items.add_poof(cur_player_pos.val0(), cur_player_pos.val1());
@@ -149,7 +150,7 @@ impl GameStepper<Input, GameStepResult> for Game {
                         Left => ((px-4.0, py+12.0), -8.0),
                         Right => ((px+20.0, py+12.0), 8.0)
                     };
-                    let new_coord = self.level.wrap_coordinates(bullet_coord);
+                    let new_coord = self.level.get_screen().wrap_coord(bullet_coord);
                     self.items.add_bullet(new_coord.val0(), new_coord.val1(), vel_x);
                     true
                 } else {
@@ -185,13 +186,13 @@ impl GameStepper<Input, GameStepResult> for Game {
             let cur_player_is_walking = self.player.is_walking();
 
             let (_moved, destroyed) = if !lock_scrolling {
-                let (rel_x, rel_y) = self.level.relative_wrap(last_player_pos, cur_player_pos);
+                let (rel_x, rel_y) = self.level.get_screen().relative_wrap(last_player_pos, cur_player_pos);
 
                 match (rel_x, rel_y) {
                     (0.0, 0.0) => (false, false),
                     (sx, _sy) => {
                         self.scroll(sx, 0.0);
-                        self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, rel_x > 0.0, rel_x < 0.0)
+                        self.items.adjust_to_scroll_boundary(&self.level.get_screen(), self.level.get_tiles(), self.scroll_x, rel_x > 0.0, rel_x < 0.0)
                     }
                 }
             } else {

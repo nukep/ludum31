@@ -1,3 +1,5 @@
+use super::rect::RectExt;
+
 pub fn test_rect_point(a: (f32, f32, f32, f32), b: (f32, f32)) -> bool {
     let (ax1, ay1, ax2, ay2) = a;
     let (bx, by) = b;
@@ -23,3 +25,14 @@ pub fn test_rect_vert_line(a: (f32, f32, f32, f32), x: f32, width: f32) -> bool 
 
     (x >= ax1 && x < ax2) || (x+width >= ax1 && x+width < ax2)
 }
+
+pub struct CollidingRect<S, P, R: RectExt<S, P>> {
+    vel_x: S,
+    vel_y: S,
+    bounce_factor: f32,
+    rect: R
+}
+// 
+// impl CollidingRect {
+//     pub new()
+// }

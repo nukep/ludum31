@@ -1,6 +1,7 @@
 use std::num::FromStrRadix;
 use serialize;
 use super::rect::RectExt;
+use super::wrapping::Screen;
 
 pub struct Tile {
     pub tile_type: TileType,
@@ -83,24 +84,21 @@ pub struct StickyKey {
     pub y: f32
 }
 
-pub struct Level {
-    pub width: u8,
-    pub height: u8,
-    pub player_start_pos: (f32, f32),
+pub struct Tiles {
+    width: u8,
+    height: u8,
+    screen: Screen,
     tiles: Vec<Tile>,
-    pub switches: Vec<Switch>,
-    pub chests: Vec<Chest>,
-    pub beanstalks: Vec<Beanstalk>,
-    pub monsters1: Vec<Monster1>,
-    pub monsters2: Vec<Monster2>,
-    pub sticky_keys: Vec<StickyKey>
 }
 
-impl Level {
-    pub fn load() -> Level {
-        let level_data = include_str!("../../assets/level.json");
-
-        parse_from_json(level_data)
+impl Tiles {
+    pub fn new(width: u8, height: u8, tiles: Vec<Tile>) -> Tiles {
+        Tiles {
+            width: width,
+            height: height,
+            screen: Screen::new(width as f32 * 16.0, height as f32 * 16.0),
+            tiles: tiles
+        }
     }
 
     pub fn get_tile(&self, x: u8, y: u8) -> &Tile {
@@ -144,7 +142,7 @@ impl Level {
         let nudge = tiles.iter().any(|&(t, _, _)| t.tile_type.is_blocking);
 
         if nudge {
-            Some(Level::nudge(x, y, left_top, right_bottom, direction))
+            Some(Tiles::nudge(x, y, left_top, right_bottom, direction))
         } else {
             None
         }
@@ -166,14 +164,13 @@ impl Level {
             Some((x as f32 * 16.0, y as f32 * 16.0, true))
         } else {
             if nudge {
-                let (x, y) = Level::nudge(x, y, left_top, right_bottom, direction);
+                let (x, y) = Tiles::nudge(x, y, left_top, right_bottom, direction);
                 Some((x, y, false))
             } else {
                 None
             }
         }
     }
-
 
     fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
         use std::num::Float;
@@ -213,7 +210,7 @@ impl Level {
     }
 
     pub fn is_dirt_entrance_below(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        self.is_tile_inside(rect.offset(self, 0.0, 4.0), 0x15)
+        self.is_tile_inside(rect.offset(&self.screen, 0.0, 4.0), 0x15)
     }
 
     pub fn has_non_blocking_tile(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
@@ -225,33 +222,40 @@ impl Level {
         }
         None
     }
+}
+
+pub struct Level {
+    pub width: u8,
+    pub height: u8,
+    pub player_start_pos: (f32, f32),
+    tiles: Tiles,
+    pub switches: Vec<Switch>,
+    pub chests: Vec<Chest>,
+    pub beanstalks: Vec<Beanstalk>,
+    pub monsters1: Vec<Monster1>,
+    pub monsters2: Vec<Monster2>,
+    pub sticky_keys: Vec<StickyKey>
+}
+
+impl Level {
+    pub fn load() -> Level {
+        let level_data = include_str!("../../assets/level.json");
+
+        parse_from_json(level_data)
+    }
+
+    pub fn get_tiles(&self) -> &Tiles { &self.tiles }
+
+    pub fn iter(&self) -> LevelTileIterator {
+        self.tiles.iter()
+    }
+
+    pub fn get_screen(&self) -> Screen {
+        Screen::new(self.width as f32 * 16.0, self.height as f32 * 16.0)
+    }
 
     pub fn level_size_as_u32(&self) -> (u32, u32) {
         (self.width as u32 * 16, self.height as u32 * 16)
-    }
-
-    pub fn level_size_as_f32(&self) -> (f32, f32) {
-        (self.width as f32 * 16.0, self.height as f32 * 16.0)
-    }
-
-    pub fn wrap_coordinates(&self, coord: (f32, f32)) -> (f32, f32) {
-        let (x, y) = coord;
-        let (w, h) = self.level_size_as_f32();
-        ((x+w) % w, (y+h) % h)
-    }
-
-    pub fn relative_wrap(&self, origin: (f32, f32), coord: (f32, f32)) -> (f32, f32) {
-        let (width, height) = self.level_size_as_f32();
-        let (origin_x, origin_y) = origin;
-        let (coord_x, coord_y) = coord;
-        let (mut new_coord_x, mut new_coord_y) = (coord_x - origin_x, coord_y - origin_y);
-
-        if new_coord_x < -width/2.0 { new_coord_x += width }
-        if new_coord_x >= width/2.0 { new_coord_x -= width }
-        if new_coord_y < -height/2.0 { new_coord_y += height }
-        if new_coord_y >= height/2.0 { new_coord_y -= height }
-
-        (new_coord_x, new_coord_y)
     }
 }
 
@@ -295,7 +299,7 @@ fn parse_from_json(input: &str) -> Level {
         layer.get("data").unwrap().as_array().expect("Not a JSON array")
     };
 
-    let tiles: Vec<Tile> = level_data_json.iter().map(|num_json| {
+    let tiles_vec: Vec<Tile> = level_data_json.iter().map(|num_json| {
         let value = num_json.as_u64().expect("Not a JSON number") as u32;
 
         let (id, flip_x, flip_y) = (value & 0x3FFFFFFF, (value & 0x80000000) != 0, (value & 0x40000000) != 0);
@@ -307,7 +311,7 @@ fn parse_from_json(input: &str) -> Level {
         }
     }).collect();
 
-    assert_eq!(tiles.len(), width*height);
+    assert_eq!(tiles_vec.len(), width*height);
 
     let objects_json = {
         let layer = layers[1].as_object().expect("Not a JSON object");
@@ -399,6 +403,8 @@ fn parse_from_json(input: &str) -> Level {
             _ => panic!("Unknown type: {}", typ)
         };
     }
+
+    let tiles = Tiles::new(width as u8, height as u8, tiles_vec);
 
     Level {
         width: width as u8,

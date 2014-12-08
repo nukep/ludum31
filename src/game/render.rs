@@ -153,12 +153,15 @@ impl GameRenderState {
 
                     match game.player.state {
                         PlayerState::Stand(ref s) => {
-                            let tile = match s.running_cycle {
-                                None => 0,
-                                Some(0.0...0.3) => 1,
-                                Some(0.3...0.6) => 2,
-                                Some(0.6...1.0) => 3,
-                                _ => 3
+                            let tile = if let Some(phase) = s.running_cycle {
+                                match phase * 3.0 {
+                                    0.0...1.0 => 1,
+                                    1.0...2.0 => 2,
+                                    2.0...3.0 => 3,
+                                    _ => 3
+                                }
+                            } else {
+                                0
                             };
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip(), false);
                             if let Some(_) = game.player.gun {
@@ -195,7 +198,6 @@ impl GameRenderState {
                                 Down => (0x37, false),
                                 Left => (0x38, true),
                                 Right => (0x38, false)
-
                             };
 
                             let drill_phase = if let Some(ref drill) = game.player.drill {

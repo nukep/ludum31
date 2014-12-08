@@ -1,38 +1,72 @@
-use super::level::Level;
+use super::wrapping::Screen;
 
-pub trait RectExt<T> {
-    fn offset(&self, level: &Level, x: f32, y: f32) -> (T, T, T, T);
-    fn set_x(&self, level: &Level, x: f32) -> (T, T, T, T);
-    fn set_y(&self, level: &Level, y: f32) -> (T, T, T, T);
-    fn x(&self) -> T;
-    fn y(&self) -> T;
-    fn width(&self) -> T;
-    fn height(&self) -> T;
+/// Should've used something like this at the beginning
+// pub struct Rect<S> {
+//     x: S,
+//     y: S,
+//     w: S,
+//     h: S
+// }
+//
+// pub struct Point<S> {
+//     x: S,
+//     y: S
+// }
+//
+// impl Rect<f32> {
+//     pub fn new_with_size(level: &Level, x: f32, y: f32, w: f32, h: f32) {
+//         let (nx, ny) = level.wrap_coordinates((x, y));
+//         Rect {
+//             x: nx,
+//             y: ny,
+//             w: w,
+//             h: h
+//         }
+//     }
+// }
+//
+// impl RectExt<f32, Point<f32> for Rect<f32> {
+//     fn offset(&self, level: &Level, x: f32, y: f32) -> Rect<f32> {
+//
+//     }
+// }
 
-    fn left_top(&self) -> (T, T) { (self.x(), self.y()) }
-    fn size(&self) -> (T, T) { (self.width(), self.height()) }
+pub trait RectExt<S, P> {
+    fn offset(&self, screen: &Screen, x: S, y: S) -> Self;
+    fn set_x(&self, screen: &Screen, x: S) -> Self;
+    fn set_y(&self, screen: &Screen, y: S) -> Self;
+    fn x(&self) -> S;
+    fn y(&self) -> S;
+    fn width(&self) -> S;
+    fn height(&self) -> S;
+
+    fn left_top(&self) -> P;
+    fn size(&self) -> P;
 }
 
-impl RectExt<f32> for (f32, f32, f32, f32) {
-    fn offset(&self, level: &Level, x: f32, y: f32) -> (f32, f32, f32, f32) {
+impl RectExt<f32, (f32, f32)> for (f32, f32, f32, f32) {
+    fn offset(&self, screen: &Screen, x: f32, y: f32) -> (f32, f32, f32, f32) {
         let (x1, y1, x2, y2) = *self;
         let (w, h) = (x2 - x1, y2 - y1);
-        let (nx1, ny1) = level.wrap_coordinates((x1+x, y1+y));
+        let (nx1, ny1) = screen.wrap_coord((x1+x, y1+y));
         let (nx2, ny2) = (nx1 + w, ny1 + h);
 
         (nx1, ny1, nx2, ny2)
     }
 
-    fn set_x(&self, level: &Level, x: f32) -> (f32, f32, f32, f32) {
-        self.offset(level, x - self.x(), 0.0)
+    fn set_x(&self, screen: &Screen, x: f32) -> (f32, f32, f32, f32) {
+        self.offset(screen, x - self.x(), 0.0)
     }
 
-    fn set_y(&self, level: &Level, y: f32) -> (f32, f32, f32, f32) {
-        self.offset(level, 0.0, y - self.y())
+    fn set_y(&self, screen: &Screen, y: f32) -> (f32, f32, f32, f32) {
+        self.offset(screen, 0.0, y - self.y())
     }
 
     fn x(&self) -> f32 { self.val0() }
     fn y(&self) -> f32 { self.val1() }
     fn width(&self) -> f32 { self.val2() - self.val0() }
     fn height(&self) -> f32 { self.val3() - self.val1() }
+
+    fn left_top(&self) -> (f32, f32) { (self.x(), self.y()) }
+    fn size(&self) -> (f32, f32) { (self.width(), self.height()) }
 }

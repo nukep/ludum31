@@ -1,4 +1,5 @@
-use super::level::Level;
+use super::level::Tiles;
+use super::wrapping::Screen;
 use super::rect::RectExt;
 
 fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool>, Option<bool>){
@@ -56,10 +57,10 @@ pub struct PlayerStateStand {
 }
 
 impl PlayerStateStand {
-    fn apply_gravity(&mut self, level: &Level) {
+    fn apply_gravity(&mut self, screen: &Screen, tiles: &Tiles) {
         let vel_y = {
             let vy = self.vel_y;
-            if self.go(level, 0.0, vy) {
+            if self.go(screen, tiles, 0.0, vy) {
                 0.0
             } else {
                 self.vel_y + 0.5
@@ -68,7 +69,7 @@ impl PlayerStateStand {
         self.vel_y = vel_y;
     }
 
-    fn run(&mut self, level: &Level, left: bool, right: bool) {
+    fn run(&mut self, screen: &Screen, tiles: &Tiles, left: bool, right: bool) {
         use std::num::Float;
 
         let speed_increment = 0.25;
@@ -90,7 +91,7 @@ impl PlayerStateStand {
             else { vx }
         };
 
-        self.go(level, vel_x, 0.0);
+        self.go(screen, tiles, vel_x, 0.0);
 
         self.vel_x = vel_x;
 
@@ -108,14 +109,14 @@ impl PlayerStateStand {
         };
     }
 
-    fn go(&mut self, level: &Level, x_delta: f32, y_delta: f32) -> bool {
-        let new_coord = level.wrap_coordinates((self.x + x_delta, self.y + y_delta));
+    fn go(&mut self, screen: &Screen, tiles: &Tiles, x_delta: f32, y_delta: f32) -> bool {
+        let new_coord = screen.wrap_coord((self.x + x_delta, self.y + y_delta));
         self.x = new_coord.val0();
         self.y = new_coord.val1();
 
         let direction = into_direction(y_delta < 0.0, y_delta > 0.0, x_delta < 0.0, x_delta > 0.0);
 
-        match level.collision_tile(self.get_rect(), direction) {
+        match tiles.collision_tile(self.get_rect(), direction) {
             Some((x, y)) => {
                 self.x = x;
                 self.y = y;
@@ -137,7 +138,7 @@ pub struct PlayerStateDigging {
 }
 
 impl PlayerStateDigging {
-    fn dig(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) -> Option<PlayerState> {
+    fn dig(&mut self, screen: &Screen, tiles: &Tiles, up: bool, down: bool, left: bool, right: bool) -> Option<PlayerState> {
         let speed = 2.0;
         let (x, y, direction) = if up {
             self.direction = PlayerDiggingDirection::Up;
@@ -155,13 +156,13 @@ impl PlayerStateDigging {
             (self.x, self.y, None)
         };
 
-        let (nx, ny) = level.wrap_coordinates((x, y));
+        let (nx, ny) = screen.wrap_coord((x, y));
         self.x = nx;
         self.y = ny;
 
         match direction {
             Some(direction) => {
-                match level.collision_tile_digging(self.get_rect(), direction, up) {
+                match tiles.collision_tile_digging(self.get_rect(), direction, up) {
                     Some((x, y, emerge_hit)) => {
                         if emerge_hit {
                             Some(PlayerState::Emerging(PlayerStateEmerging {
@@ -217,7 +218,7 @@ impl PlayerStateEmerging {
         }
     }
 
-    pub fn tick(&mut self, level: &Level) -> Option<PlayerState> {
+    pub fn tick(&mut self, screen: &Screen) -> Option<PlayerState> {
         self.phase += 0.04;
         if self.phase >= 1.0 {
             let direction = if self.to_x < self.from_x {
@@ -243,7 +244,7 @@ impl PlayerStateEmerging {
             let y_phase = FloatMath::sin(self.phase * coeff) / FloatMath::sin(coeff);
             let x_phase = self.phase.powf(3.0);
 
-            let new_coord = level.wrap_coordinates((lerp(self.from_x, self.to_x, x_phase), lerp(self.from_y, self.to_y, y_phase)));
+            let new_coord = screen.wrap_coord((lerp(self.from_x, self.to_x, x_phase), lerp(self.from_y, self.to_y, y_phase)));
             self.x = new_coord.val0();
             self.y = new_coord.val1();
             None
@@ -325,16 +326,16 @@ impl Player {
         })
     }
 
-    pub fn tick(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) {
+    pub fn tick(&mut self, screen: &Screen, tiles: &Tiles, up: bool, down: bool, left: bool, right: bool) {
         let next_state: Option<PlayerState> = match self.state {
             PlayerState::Stand(ref mut s) => {
-                s.apply_gravity(level);
-                s.run(level, left, right);
+                s.apply_gravity(screen, tiles);
+                s.run(screen, tiles, left, right);
 
                 let has_drill = if let Some(_) = self.drill { true } else { false };
 
                 if has_drill && down {
-                    match level.is_dirt_entrance_below(s.get_rect()) {
+                    match tiles.is_dirt_entrance_below(s.get_rect()) {
                         Some((x, y)) => {
                             // Dig it up!
                             Some(PlayerState::Digging(PlayerStateDigging {
@@ -350,10 +351,10 @@ impl Player {
                 }
             },
             PlayerState::Digging(ref mut s) => {
-                s.dig(level, up, down, left, right)
+                s.dig(screen, tiles, up, down, left, right)
             },
             PlayerState::Emerging(ref mut s) => {
-                s.tick(level)
+                s.tick(screen)
             },
             PlayerState::Climbing(ref mut s) => {
                 if up {
@@ -364,8 +365,8 @@ impl Player {
                     None
                 } else if left {
                     // Try to jump off
-                    let rect = s.get_rect().offset(level, -16.0, 0.0);
-                    match level.has_non_blocking_tile(rect) {
+                    let rect = s.get_rect().offset(screen, -16.0, 0.0);
+                    match tiles.has_non_blocking_tile(rect) {
                         Some((x, y)) => {
                             Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
                         },
@@ -373,8 +374,8 @@ impl Player {
                     }
                 } else if right {
                     // Try to jump off
-                    let rect = s.get_rect().offset(level, 16.0, 0.0);
-                    match level.has_non_blocking_tile(rect) {
+                    let rect = s.get_rect().offset(screen, 16.0, 0.0);
+                    match tiles.has_non_blocking_tile(rect) {
                         Some((x, y)) => {
                             Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
                         },

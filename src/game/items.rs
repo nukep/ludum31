@@ -1,4 +1,5 @@
-use super::level::Level;
+use super::level::{Level, Tiles};
+use super::wrapping::Screen;
 use super::collision;
 use super::rect::RectExt;
 
@@ -374,12 +375,12 @@ impl DynamicItems {
         self.poofs = new_poofs;
     }
 
-    fn step_bullets(&mut self, level: &Level) {
+    fn step_bullets(&mut self, screen: &Screen) {
         let new_bullets = self.bullets.iter().filter_map(|bullet| {
             let mut phase = bullet.phase + 0.3;
             if phase >= 1.0 { phase = 1.0; }
 
-            let new_coord = level.wrap_coordinates((bullet.x + bullet.vel_x, bullet.y));
+            let new_coord = screen.wrap_coord((bullet.x + bullet.vel_x, bullet.y));
             let x = new_coord.val0();
 
             if bullet.timeout - 1 == 0 {
@@ -398,7 +399,7 @@ impl DynamicItems {
         self.bullets = new_bullets;
     }
 
-    pub fn bullet_item_collision(&mut self, level: &Level) {
+    pub fn bullet_item_collision(&mut self, tiles: &Tiles) {
         // Annihilate both the bullet and the item on collision
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
@@ -444,7 +445,7 @@ impl DynamicItems {
                 }
             }
 
-            if let Some(_) = level.collision_tile(rect, (None, None)) {
+            if let Some(_) = tiles.collision_tile(rect, (None, None)) {
                 poof_list.push((bullet.x - 8.0, bullet.y - 8.0));
                 bullet_alive = false;
             }
@@ -464,8 +465,8 @@ impl DynamicItems {
 
     /// Returns (true, _) if items have been moved.
     /// Returns (_, true) if items have been destroyed.
-    pub fn adjust_to_scroll_boundary(&mut self, level: &Level, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
-        let (width, _) = level.level_size_as_f32();
+    pub fn adjust_to_scroll_boundary(&mut self, screen: &Screen, tiles: &Tiles, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
+        let width = screen.width;
 
         let do_collision = |rect: (f32, f32, f32, f32)| -> ((f32, f32, f32, f32), bool, bool) {
             let mut moved = false;
@@ -473,16 +474,16 @@ impl DynamicItems {
             let new_rect = if x_inc {
                 if collision::test_rect_vert_line(rect, x_line, width) {
                     moved = true;
-                    rect.set_x(level, x_line)
+                    rect.set_x(screen, x_line)
                 } else { rect }
             } else if x_dec {
                 if collision::test_rect_vert_line(rect, x_line, width) {
                     moved = true;
-                    rect.set_x(level, (x_line - rect.width() + width) % width)
+                    rect.set_x(screen, (x_line - rect.width() + width) % width)
                 } else { rect}
             } else { rect };
 
-            let destroy = if let Some((_, _)) = level.collision_tile(new_rect, (None, None)) { true }
+            let destroy = if let Some((_, _)) = tiles.collision_tile(new_rect, (None, None)) { true }
             else { false };
 
             (new_rect, moved, destroy)
@@ -591,9 +592,9 @@ impl DynamicItems {
         false
     }
 
-    pub fn step(&mut self, level: &Level) {
+    pub fn step(&mut self, screen: &Screen) {
         self.step_poofs();
-        self.step_bullets(level);
+        self.step_bullets(screen);
         self.step_chests();
         self.step_monsters();
     }
