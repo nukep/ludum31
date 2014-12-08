@@ -1,4 +1,5 @@
 use super::level::Level;
+use super::rect::RectExt;
 
 fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool>, Option<bool>){
     let direction_down = match (up, down) {
@@ -18,15 +19,11 @@ fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool
     (direction_right, direction_down)
 }
 
-pub enum PlayerItem {
-    None,
-    Drill(PlayerItemDrill),
-    Gun
-}
-
 pub struct PlayerItemDrill {
     pub phase: f32
 }
+
+pub struct PlayerItemGun;
 
 pub enum PlayerStandDirection {
     Left,
@@ -199,20 +196,38 @@ impl PlayerStateDigging {
 pub struct PlayerStateEmerging {
     pub x: f32,
     pub y: f32,
+    pub from_x: f32,
+    pub from_y: f32,
+    pub to_x: f32,
+    pub to_y: f32,
 
-    from_x: f32,
-    from_y: f32,
-    to_x: f32,
-    to_y: f32,
     phase: f32
 }
 
 impl PlayerStateEmerging {
-    pub fn tick(&mut self) -> Option<PlayerState> {
+    pub fn new(from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> PlayerStateEmerging {
+        PlayerStateEmerging {
+            x: from_x,
+            y: from_y,
+            from_x: from_x,
+            from_y: from_y,
+            to_x: to_x,
+            to_y: to_y,
+            phase: 0.0
+        }
+    }
+
+    pub fn tick(&mut self, level: &Level) -> Option<PlayerState> {
         self.phase += 0.04;
         if self.phase >= 1.0 {
+            let direction = if self.to_x < self.from_x {
+                PlayerStandDirection::Left
+            } else {
+                PlayerStandDirection::Right
+            };
+
             Some(PlayerState::Stand(PlayerStateStand {
-                direction: PlayerStandDirection::Left,
+                direction: direction,
                 x: self.to_x,
                 y: self.to_y,
                 vel_x: 0.0,
@@ -228,38 +243,86 @@ impl PlayerStateEmerging {
             let y_phase = FloatMath::sin(self.phase * coeff) / FloatMath::sin(coeff);
             let x_phase = self.phase.powf(3.0);
 
-            self.x = lerp(self.from_x, self.to_x, x_phase);
-            self.y = lerp(self.from_y, self.to_y, y_phase);
+            let new_coord = level.wrap_coordinates((lerp(self.from_x, self.to_x, x_phase), lerp(self.from_y, self.to_y, y_phase)));
+            self.x = new_coord.val0();
+            self.y = new_coord.val1();
             None
         }
     }
 }
 
+pub struct PlayerStateClimbing {
+    pub x: f32,
+    pub y: f32,
+    pub phase: f32,
+
+    beanstalk_y: f32,
+    beanstalk_y_max: f32
+}
+
+impl PlayerStateClimbing {
+    fn climb_up(&mut self) {
+        let y = self.y - 2.0;
+        self.phase = (self.phase + 0.1) % 1.0;
+
+        self.y = if y < self.beanstalk_y { self.beanstalk_y }
+        else { y };
+    }
+
+    fn climb_down(&mut self) {
+        let y = self.y + 2.0;
+        self.phase = (self.phase + 0.1) % 1.0;
+
+        self.y = if y > self.beanstalk_y_max { self.beanstalk_y_max }
+        else { y };
+    }
+
+    fn get_rect(&self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    }
+}
+
+pub struct PlayerStateDying {
+    pub x: f32,
+    pub y: f32,
+    pub phase: f32,
+
+    regen_coord: (f32, f32)
+}
+
 pub enum PlayerState {
     Stand(PlayerStateStand),
     Digging(PlayerStateDigging),
-    Emerging(PlayerStateEmerging)
+    Emerging(PlayerStateEmerging),
+    Climbing(PlayerStateClimbing),
+    Dying(PlayerStateDying)
 }
 
 pub struct Player {
     pub state: PlayerState,
-    pub item: PlayerItem
+    pub drill: Option<PlayerItemDrill>,
+    pub gun: Option<PlayerItemGun>
 }
 
 impl Player {
     pub fn new(pos: (f32, f32)) -> Player {
-        let (x, y) = pos;
         Player {
-            state: PlayerState::Stand(PlayerStateStand {
-                direction: PlayerStandDirection::Left,
-                x: x,
-                y: y,
-                vel_x: 0.0,
-                vel_y: 0.0,
-                running_cycle: None
-            }),
-            item: PlayerItem::None
+            state: Player::get_initial_state(pos),
+            drill: None,
+            gun: None
         }
+    }
+
+    fn get_initial_state(pos: (f32, f32)) -> PlayerState {
+        let (x, y) = pos;
+        PlayerState::Stand(PlayerStateStand {
+            direction: PlayerStandDirection::Left,
+            x: x,
+            y: y,
+            vel_x: 0.0,
+            vel_y: 0.0,
+            running_cycle: None
+        })
     }
 
     pub fn tick(&mut self, level: &Level, up: bool, down: bool, left: bool, right: bool) {
@@ -268,7 +331,7 @@ impl Player {
                 s.apply_gravity(level);
                 s.run(level, left, right);
 
-                let has_drill = if let PlayerItem::Drill(_) = self.item { true } else { false };
+                let has_drill = if let Some(_) = self.drill { true } else { false };
 
                 if has_drill && down {
                     match level.is_dirt_entrance_below(s.get_rect()) {
@@ -290,26 +353,59 @@ impl Player {
                 s.dig(level, up, down, left, right)
             },
             PlayerState::Emerging(ref mut s) => {
-                s.tick()
+                s.tick(level)
+            },
+            PlayerState::Climbing(ref mut s) => {
+                if up {
+                    s.climb_up();
+                    None
+                } else if down {
+                    s.climb_down();
+                    None
+                } else if left {
+                    // Try to jump off
+                    let rect = s.get_rect().offset(level, -16.0, 0.0);
+                    match level.has_non_blocking_tile(rect) {
+                        Some((x, y)) => {
+                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
+                        },
+                        None => None
+                    }
+                } else if right {
+                    // Try to jump off
+                    let rect = s.get_rect().offset(level, 16.0, 0.0);
+                    match level.has_non_blocking_tile(rect) {
+                        Some((x, y)) => {
+                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
+                        },
+                        None => None
+                    }
+                } else {
+                    None
+                }
+            },
+            PlayerState::Dying(ref mut s) => {
+                let phase = s.phase + 0.05;
+                if phase >= 1.0 {
+                    Some(Player::get_initial_state(s.regen_coord))
+                } else {
+                    s.phase = phase;
+                    None
+                }
             }
         };
 
         self.tick_item();
 
         match next_state {
-            Some(s) => {
-                self.state = s;
-            },
+            Some(s) => self.state = s,
             None => ()
         }
     }
 
     fn tick_item(&mut self) {
-        match self.item {
-            PlayerItem::Drill(ref mut drill) => {
-                drill.phase = (drill.phase + 0.1) % 1.0;
-            },
-            _ => ()
+        if let Some(ref mut drill) = self.drill {
+            drill.phase = (drill.phase + 0.1) % 1.0;
         }
     }
 
@@ -324,6 +420,12 @@ impl Player {
                 (Float::floor(s.x), Float::floor(s.y))
             },
             PlayerState::Emerging(ref s) => {
+                (Float::floor(s.x), Float::floor(s.y))
+            },
+            PlayerState::Climbing(ref s) => {
+                (Float::floor(s.x), Float::floor(s.y))
+            },
+            PlayerState::Dying(ref s) => {
                 (Float::floor(s.x), Float::floor(s.y))
             }
         }
@@ -346,8 +448,50 @@ impl Player {
     }
 
     pub fn add_drill(&mut self) {
-        self.item = PlayerItem::Drill(PlayerItemDrill {
+        self.drill = Some(PlayerItemDrill {
             phase: 0.0
         });
+    }
+
+    pub fn add_gun(&mut self) {
+        self.gun = Some(PlayerItemGun);
+    }
+
+    pub fn try_climb_beanstalk(&mut self, x: f32, y: f32, beanstalk_y: f32, beanstalk_height: f32) {
+        let next_state: Option<PlayerState> = match self.state {
+            PlayerState::Stand(ref s) => {
+                Some(PlayerState::Climbing(PlayerStateClimbing {
+                    x: x,
+                    y: y,
+                    beanstalk_y: beanstalk_y,
+                    beanstalk_y_max: beanstalk_y + beanstalk_height - 16.0,
+                    phase: 0.0
+                }))
+            },
+            _ => None
+        };
+
+        match next_state {
+            Some(s) => self.state = s,
+            None => ()
+        }
+    }
+
+    pub fn die(&mut self, regen_coord: (f32, f32)) {
+        let (px, py) = self.get_pos();
+        self.state = PlayerState::Dying(PlayerStateDying {
+            x: px,
+            y: py,
+            regen_coord: regen_coord,
+            phase: 0.0
+        });
+    }
+
+    pub fn is_alive(&self) -> bool {
+        if let PlayerState::Dying(_) = self.state {
+            false
+        } else {
+            true
+        }
     }
 }

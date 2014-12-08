@@ -76,18 +76,35 @@ impl GameStepper<Input, GameStepResult> for Game {
             return Exit;
         }
 
-        let lock_scrolling = input.is_keycode_down(KeyCode::LCtrl) | input.is_keycode_down(KeyCode::RCtrl);
+        let lock_scrolling = input.is_keycode_down(KeyCode::LCtrl) | input.is_keycode_down(KeyCode::RCtrl) | !self.player.is_alive();
+        let fire = input.is_keycode_newly_down(KeyCode::Space) | input.is_mouse_button_newly_down(sdl2::mouse::LEFTMOUSESTATE);
         let up = input.is_keycode_down(KeyCode::Up) | input.is_keycode_down(KeyCode::W);
         let down = input.is_keycode_down(KeyCode::Down) | input.is_keycode_down(KeyCode::S);
+        let new_down = input.is_keycode_newly_down(KeyCode::Down) | input.is_keycode_newly_down(KeyCode::S);
         let left = input.is_keycode_down(KeyCode::Left) | input.is_keycode_down(KeyCode::A);
         let right = input.is_keycode_down(KeyCode::Right) | input.is_keycode_down(KeyCode::D);
 
         let last_player_pos = self.player.get_pos();
         let last_player_is_walking = self.player.is_walking();
+
+        if up {
+            use self::rect::RectExt;
+
+            let player_rect = self.player.get_rect();
+            let beanstalk = self.items.beanstalk_exists(player_rect);
+
+            match beanstalk {
+                Some(rect) => {
+                    self.player.try_climb_beanstalk(rect.x(), player_rect.y(), rect.y(), rect.height());
+                },
+                None => ()
+            }
+        }
+
         self.player.tick(&self.level, up, down, left, right);
         let cur_player_pos = self.player.get_pos();
 
-        let got_item = if down {
+        let got_item = if new_down {
             let items = self.items.try_open_chest(self.player.get_rect());
             let (px, py) = cur_player_pos;
 
@@ -98,7 +115,9 @@ impl GameStepper<Input, GameStepResult> for Game {
                     &ChestItem::Drill => {
                         self.player.add_drill();
                     },
-                    &ChestItem::Gun => (),
+                    &ChestItem::Gun => {
+                        self.player.add_gun();
+                    },
                     _ => ()
                 }
 
@@ -110,9 +129,44 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        self.items.step_poofs();
-        self.items.step_chests();
-        self.items.step_monsters();
+        self.items.step(&self.level);
+
+        self.items.bullet_item_collision(&self.level);
+
+        let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
+            self.items.add_poof(cur_player_pos.val0(), cur_player_pos.val1());
+            true
+        } else {
+            false
+        };
+
+        let gun_fired = if fire {
+            if let self::player::PlayerState::Stand(ref s) = self.player.state {
+                if let Some(_) = self.player.gun {
+                    use self::player::PlayerStandDirection::{Left, Right};
+
+                    let (px, py) = cur_player_pos;
+                    let (bullet_coord, vel_x) = match s.direction {
+                        Left => ((px-4.0, py+12.0), -8.0),
+                        Right => ((px+20.0, py+12.0), 8.0)
+                    };
+                    let new_coord = self.level.wrap_coordinates(bullet_coord);
+                    self.items.add_bullet(new_coord.val0(), new_coord.val1(), vel_x);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if died {
+            self.player.die(self.level.player_start_pos);
+        }
+
         {
             let switch_triggers: Vec<u8> = {
                 let switches = match cur_player_pos {
@@ -139,7 +193,7 @@ impl GameStepper<Input, GameStepResult> for Game {
                 match (rel_x, rel_y) {
                     (0.0, 0.0) => (false, false),
                     (sx, sy) => {
-                        self.scroll(sx, sy);
+                        self.scroll(sx, 0.0);
                         self.items.adjust_to_scroll_boundary(&self.level, self.scroll_x, self.scroll_y, rel_x > 0.0, rel_y > 0.0, rel_x < 0.0, rel_y < 0.0)
                     }
                 }
@@ -165,6 +219,15 @@ impl GameStepper<Input, GameStepResult> for Game {
                 if got_item {
                     audio.item_get();
                     audio.poof();
+                }
+
+                if gun_fired {
+                    audio.fire();
+                }
+
+                if died {
+                    audio.stop_walking();
+                    audio.die();
                 }
             }
         }

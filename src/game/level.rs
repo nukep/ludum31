@@ -78,6 +78,11 @@ pub struct Monster2 {
     pub triggered_by: Option<u8>
 }
 
+pub struct StickyKey {
+    pub x: f32,
+    pub y: f32
+}
+
 pub struct Level {
     pub width: u8,
     pub height: u8,
@@ -87,7 +92,8 @@ pub struct Level {
     pub chests: Vec<Chest>,
     pub beanstalks: Vec<Beanstalk>,
     pub monsters1: Vec<Monster1>,
-    pub monsters2: Vec<Monster2>
+    pub monsters2: Vec<Monster2>,
+    pub sticky_keys: Vec<StickyKey>
 }
 
 impl Level {
@@ -210,6 +216,16 @@ impl Level {
         self.is_tile_inside(rect.offset(self, 0.0, 4.0), 0x15)
     }
 
+    pub fn has_non_blocking_tile(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
+        let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
+        for &(tile, x, y) in tiles.iter() {
+            if !(*tile).tile_type.is_blocking {
+                return Some((x as u8, y as u8))
+            }
+        }
+        None
+    }
+
     pub fn level_size_as_u32(&self) -> (u32, u32) {
         (self.width as u32 * 16, self.height as u32 * 16)
     }
@@ -304,6 +320,7 @@ fn parse_from_json(input: &str) -> Level {
     let mut beanstalks: Vec<Beanstalk> = Vec::new();
     let mut monsters1: Vec<Monster1> = Vec::new();
     let mut monsters2: Vec<Monster2> = Vec::new();
+    let mut sticky_keys: Vec<StickyKey> = Vec::new();
 
     for x in objects_json.iter() {
 
@@ -373,6 +390,12 @@ fn parse_from_json(input: &str) -> Level {
                     triggered_by: triggered_by
                 });
             },
+            "stickykey" => {
+                sticky_keys.push(StickyKey {
+                    x: x,
+                    y: y
+                })
+            }
             _ => panic!("Unknown type: {}", typ)
         };
     }
@@ -386,7 +409,8 @@ fn parse_from_json(input: &str) -> Level {
         chests: chests,
         beanstalks: beanstalks,
         monsters1: monsters1,
-        monsters2: monsters2
+        monsters2: monsters2,
+        sticky_keys: sticky_keys
     }
 }
 

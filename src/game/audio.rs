@@ -47,19 +47,6 @@ impl Audio {
 
     // TODO: Don't lock the audio thread, enqueue instead
 
-    pub fn jump(&mut self) {
-        let mut lock = self.device.lock();
-        let mut controller = &mut ((*lock).controller);
-
-        controller.set_effect(0, box SweepEffect {
-            freq: (2000.0, 50.0),
-            volume: (0.4, 0.5),
-            duty: (0.5, 0.25),
-            ticks: 30,
-            quantize: 1
-        }.iter());
-    }
-
     pub fn poof(&mut self) {
         let mut lock = self.device.lock();
         let mut controller = &mut ((*lock).controller);
@@ -105,6 +92,37 @@ impl Audio {
             ticks: 20,
             quantize: 2
         }.iter());
+    }
+
+    pub fn fire(&mut self) {
+        let mut lock = self.device.lock();
+        let mut controller = &mut ((*lock).controller);
+
+        controller.set_effect(0, box SweepEffect {
+            freq: (200.0, 10.0),
+            volume: (1.0, 0.8),
+            duty: (0.5, 0.5),
+            ticks: 8,
+            quantize: 1
+        }.iter());
+        controller.set_effect(2, box SweepEffect {
+            freq: (2000.0, 200.0),
+            volume: (1.0, 0.8),
+            duty: (0.5, 0.5),
+            ticks: 8,
+            quantize: 1
+        }.iter());
+        controller.set_effect(3, box SweepEffect {
+            freq: (4000.0, 200.0),
+            volume: (0.5, 0.2),
+            duty: (0.5, 0.5),
+            ticks: 16,
+            quantize: 4
+        }.iter());
+    }
+
+    pub fn die(&mut self) {
+        self.explode();
     }
 
     pub fn start_walking(&mut self) {
