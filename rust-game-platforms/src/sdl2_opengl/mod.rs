@@ -176,7 +176,7 @@ impl<GL, S> RenderContext<GL, S> {
 
         let (width, height) = initial_size;
 
-        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width, height, sdl2::video::OPENGL | sdl2::video::SHOWN | sdl2::video::RESIZABLE) {
+        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width, height, sdl2::video::OPENGL | sdl2::video::SHOWN) {
             Ok(window) => window,
             Err(err) => return Err(format!("failed to create window: {}", err))
         };
