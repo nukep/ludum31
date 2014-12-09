@@ -20,7 +20,7 @@ mod util;
 // Statically link SDL2 (libSDL2.a)
 // Link the required Windows dependencies
 #[cfg(target_os="windows")]
-#[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid"]
+#[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid -Wl,--subsystem,windows"]
 extern {}
 
 /// Read and lock a mutex value infinitely
