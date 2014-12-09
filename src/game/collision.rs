@@ -1,5 +1,10 @@
 use super::rect::RectExt;
 
+pub trait Collidable<R, P> {
+    fn test_point(point: &P) -> bool;
+    fn test_rect(rect: &R) -> bool;
+}
+
 pub fn test_rect_point(a: (f32, f32, f32, f32), b: (f32, f32)) -> bool {
     let (ax1, ay1, ax2, ay2) = a;
     let (bx, by) = b;
@@ -27,12 +32,15 @@ pub fn test_rect_vert_line(a: (f32, f32, f32, f32), x: f32, width: f32) -> bool 
 }
 
 pub struct CollidingRect<S, P, R: RectExt<S, P>> {
-    vel_x: S,
-    vel_y: S,
-    bounce_factor: f32,
-    rect: R
+    pub rect: R,
+    pub vel_x: S,
+    pub vel_y: S,
+    pub acc_y: S,
+    pub bounce_factor: f32,
 }
-// 
+//
 // impl CollidingRect {
-//     pub new()
+//     pub fn step<T: Collidable<(f32, f32, f32, f32), (f32, f32)>>(&mut self, collidable: &T) {
+//
+//     }
 // }

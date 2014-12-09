@@ -1,5 +1,6 @@
 #![feature(link_args)]
 #![feature(if_let)]
+#![feature(while_let)]
 
 extern crate cgmath;
 extern crate game_platforms;
@@ -59,7 +60,7 @@ fn main() {
         (w, h) => (w as int * scale, h as int * scale)
     };
 
-    let render_ctx = match RenderContext::new("Ludum 31", size, (3, 0), load_gl) {
+    let render_ctx = match RenderContext::new("Mr. Scroll", size, (3, 0), load_gl) {
         Ok(ctx) => ctx,
         Err(e) => panic!("{}", e)
     };

@@ -24,11 +24,19 @@ impl Bullet {
     }
 }
 
+pub struct Useless {
+    pub x: f32,
+    pub y: f32,
+    pub phase: f32
+}
+
 pub struct Switch {
     pub trigger: u8,
+    pub triggered_by: Option<u8>,
     pub x: f32,
     pub y: f32,
     pub is_down: bool,
+    pub visible: bool,
     release_timeout: u8
 }
 
@@ -41,6 +49,7 @@ impl Switch {
 pub struct Chest {
     pub triggered_by: Option<u8>,
     pub trigger: Option<u8>,
+    pub explode_trigger: Option<u8>,
     pub x: f32,
     pub y: f32,
     pub visible: bool,
@@ -70,7 +79,8 @@ impl Chest {
 pub enum ChestItem {
     UselessPoints,
     Drill,
-    Gun
+    Gun,
+    None
 }
 
 pub struct Monster1 {
@@ -136,10 +146,23 @@ pub struct Key {
     pub x: f32,
     pub y: f32,
     pub is_sticky: bool,
-    pub visible: bool
+    pub visible: bool,
+    vel_y: f32,
+    to_y: f32
 }
 
 impl Key {
+    pub fn is_free(&self) -> bool {
+        !self.is_sticky && self.visible
+    }
+
+    pub fn step(&mut self) {
+        let y = self.y + self.vel_y;
+        self.y = if y > self.to_y { self.to_y } else { y };
+
+        self.vel_y += 0.1;
+    }
+
     pub fn unstick(&mut self) {
         self.is_sticky = false;
     }
@@ -149,15 +172,27 @@ impl Key {
     }
 }
 
+pub struct Message {
+    pub x: f32,
+    pub y: f32,
+    pub width: uint,
+    pub height: uint,
+    pub tiles: Vec<u16>,
+    pub triggered_by: Option<u8>,
+    pub visible: bool,
+}
+
 pub struct DynamicItems {
     pub poofs: Vec<Poof>,
     pub bullets: Vec<Bullet>,
+    pub useless: Vec<Useless>,
     pub switches: Vec<Switch>,
     pub chests: Vec<Chest>,
     pub monsters1: Vec<Monster1>,
     pub monsters2: Vec<Monster2>,
     pub beanstalks: Vec<Beanstalk>,
     pub keys: Vec<Key>,
+    pub messages: Vec<Message>,
 }
 
 impl DynamicItems {
@@ -165,6 +200,8 @@ impl DynamicItems {
         let switches = level.switches.iter().map(|s| {
             Switch {
                 trigger: s.trigger,
+                triggered_by: s.triggered_by,
+                visible: match s.triggered_by { Some(_) => false, None => true },
                 x: s.x,
                 y: s.y,
                 is_down: false,
@@ -176,6 +213,7 @@ impl DynamicItems {
             Chest {
                 triggered_by: s.triggered_by,
                 trigger: s.trigger,
+                explode_trigger: s.explode_trigger,
                 x: s.x,
                 y: s.y,
                 visible: match s.triggered_by { Some(_) => false, None => true },
@@ -190,6 +228,7 @@ impl DynamicItems {
                     "useless" => ChestItem::UselessPoints,
                     "drill" => ChestItem::Drill,
                     "gun" => ChestItem::Gun,
+                    "none" => ChestItem::None,
                     e => panic!("Unknown item: {}", e)
                 }
             }
@@ -233,19 +272,35 @@ impl DynamicItems {
                 x: s.x,
                 y: s.y,
                 is_sticky: true,
-                visible: true
+                visible: true,
+                vel_y: 0.0,
+                to_y: s.y + s.fall_distance
+            }
+        }).collect();
+
+        let messages = level.messages.iter().map(|s| {
+            Message {
+                x: s.x,
+                y: s.y,
+                width: s.width,
+                height: s.height,
+                tiles: s.tiles.clone(),
+                triggered_by: s.triggered_by,
+                visible: false,
             }
         }).collect();
 
         DynamicItems {
             poofs: Vec::new(),
             bullets: Vec::new(),
+            useless: Vec::new(),
             switches: switches,
             chests: chests,
             monsters1: monsters1,
             monsters2: monsters2,
             beanstalks: beanstalks,
             keys: keys,
+            messages: messages,
         }
     }
 
@@ -258,6 +313,12 @@ impl DynamicItems {
         }
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
+
+        for switch in self.switches.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
+            switch.visible = true;
+            poof_list.push((switch.x, switch.y));
+            did_something = true;
+        }
 
         for chest in self.chests.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
             chest.spawn();
@@ -285,6 +346,11 @@ impl DynamicItems {
             did_something = true;
         }
 
+        for message in self.messages.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
+            message.visible = true;
+            did_something = true;
+        }
+
         for poof in poof_list.iter() {
             let &(x, y) = poof;
             self.add_poof(x-5.0, y-5.0);
@@ -298,7 +364,7 @@ impl DynamicItems {
     pub fn switch_hit_test(&self, x: f32, y: f32, w: f32, h: f32) -> Vec<&Switch> {
         // Switches love triggers
 
-        self.switches.iter().filter_map(|switch| {
+        self.switches.iter().filter(|s| s.visible).filter_map(|switch| {
             let hit = collision::test_rects((x, y, x+w, y+h), switch.get_rect());
 
             if hit { Some(switch) }
@@ -306,7 +372,7 @@ impl DynamicItems {
         }).collect()
     }
 
-    pub fn try_open_chest(&mut self, rect: (f32, f32, f32, f32)) -> Vec<ChestItem> {
+    pub fn try_open_chest(&mut self, rect: (f32, f32, f32, f32)) -> Vec<(f32, f32, ChestItem)> {
         let mut opened_chest = false;
         let mut triggers: Vec<u8> = Vec::new();
 
@@ -319,7 +385,7 @@ impl DynamicItems {
                     Some(trigger) => triggers.push(trigger),
                     None => ()
                 };
-                Some(chest.contains)
+                Some((chest.x, chest.y, chest.contains))
             }
             else { None }
         }).collect();
@@ -329,6 +395,17 @@ impl DynamicItems {
         }
 
         items
+    }
+
+    pub fn try_take_keys(&mut self, rect: (f32, f32, f32, f32)) -> uint {
+        let mut count = 0u;
+        for key in self.keys.iter_mut().filter(|k| k.is_free()) {
+            if collision::test_rects(rect, key.get_rect()) {
+                key.visible = false;
+                count += 1;
+            }
+        }
+        count
     }
 
     pub fn beanstalk_exists(&mut self, rect: (f32, f32, f32, f32)) -> Option<(f32, f32, f32, f32)> {
@@ -355,6 +432,14 @@ impl DynamicItems {
             vel_x: vel_x,
             phase: 0.0,
             timeout: 40
+        });
+    }
+
+    pub fn add_useless_points(&mut self, x: f32, y: f32) {
+        self.useless.push(Useless {
+            x: x,
+            y: y,
+            phase: 0.0
         });
     }
 
@@ -397,6 +482,23 @@ impl DynamicItems {
         }).collect();
 
         self.bullets = new_bullets;
+    }
+
+    fn step_useless(&mut self) {
+        let new_useless = self.useless.iter().filter_map(|useless| {
+            let phase = useless.phase + 0.03;
+            if phase >= 1.0 {
+                None
+            } else {
+                Some(Useless {
+                    x: useless.x,
+                    y: useless.y - 0.5,
+                    phase: phase
+                })
+            }
+        }).collect();
+
+        self.useless = new_useless;
     }
 
     pub fn bullet_item_collision(&mut self, tiles: &Tiles) {
@@ -494,6 +596,7 @@ impl DynamicItems {
         let mut destroyed = false;
 
         let mut poof_list: Vec<(f32, f32)> = Vec::new();
+        let mut triggers: Vec<u8> = Vec::new();
 
         for chest in self.chests.iter_mut().filter(|c| c.visible && !c.is_static ) {
             let (new_rect, mov, destroy) = do_collision(chest.get_rect());
@@ -505,6 +608,9 @@ impl DynamicItems {
 
             if destroy {
                 chest.visible = false;
+                if let Some(trigger) = chest.explode_trigger {
+                    triggers.push(trigger);
+                }
                 poof_list.push((chest.x, chest.y));
                 destroyed = true;
             }
@@ -528,6 +634,10 @@ impl DynamicItems {
         for poof in poof_list.iter() {
             let &(x, y) = poof;
             self.add_poof(x, y);
+        }
+
+        for trigger in triggers.iter() {
+            self.trigger(*trigger);
         }
 
         (moved, destroyed)
@@ -578,6 +688,12 @@ impl DynamicItems {
         }
     }
 
+    fn step_keys(&mut self) {
+        for key in self.keys.iter_mut().filter(|k| k.is_free()) {
+            key.step()
+        }
+    }
+
     pub fn rect_hits_monsters(&self, rect: (f32, f32, f32, f32)) -> bool {
         for monster1 in self.monsters1.iter().filter(|m| m.visible) {
             if collision::test_rects(rect, monster1.get_rect()) {
@@ -595,7 +711,9 @@ impl DynamicItems {
     pub fn step(&mut self, screen: &Screen) {
         self.step_poofs();
         self.step_bullets(screen);
+        self.step_useless();
         self.step_chests();
         self.step_monsters();
+        self.step_keys();
     }
 }

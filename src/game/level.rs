@@ -3,12 +3,24 @@ use serialize;
 use super::rect::RectExt;
 use super::wrapping::Screen;
 
+#[deriving(Clone)]
 pub struct Tile {
     pub tile_type: TileType,
     pub flip_x: bool,
     pub flip_y: bool
 }
 
+impl Tile {
+    pub fn empty() -> Tile {
+        Tile {
+            tile_type: TileType::from_id(0),
+            flip_x: false,
+            flip_y: false
+        }
+    }
+}
+
+#[deriving(Clone)]
 pub struct TileType {
     pub id: u16,
     pub is_blocking: bool,
@@ -23,6 +35,11 @@ impl TileType {
             0x17 => false,
             0x23 => false,
             0x3A => false,
+            // Exit
+            0x2C => false,
+            0x2D => false,
+            // Coin
+            0x21 => false,
             _ => true
         };
         let can_dig = match id {
@@ -45,13 +62,15 @@ impl TileType {
 pub struct Switch {
     pub x: f32,
     pub y: f32,
-    pub trigger: u8
+    pub trigger: u8,
+    pub triggered_by: Option<u8>,
 }
 
 pub struct Chest {
     pub x: f32,
     pub y: f32,
     pub trigger: Option<u8>,
+    pub explode_trigger: Option<u8>,
     pub triggered_by: Option<u8>,
     pub poof: bool,
     pub is_static: bool,
@@ -81,7 +100,26 @@ pub struct Monster2 {
 
 pub struct StickyKey {
     pub x: f32,
-    pub y: f32
+    pub y: f32,
+    pub fall_distance: f32
+}
+
+pub struct Message {
+    pub x: f32,
+    pub y: f32,
+    pub width: uint,
+    pub height: uint,
+    pub tiles: Vec<u16>,
+    pub triggered_by: Option<u8>
+}
+
+pub struct SetTo {
+    pub x: uint,
+    pub y: uint,
+    pub width: uint,
+    pub height: uint,
+    pub tile: Tile,
+    pub triggered_by: Option<u8>
 }
 
 pub struct Tiles {
@@ -104,6 +142,24 @@ impl Tiles {
     pub fn get_tile(&self, x: u8, y: u8) -> &Tile {
         let offset = y as uint * self.width as uint + x as uint;
         self.tiles.index(&offset)
+    }
+
+    fn get_tile_mut(&mut self, x: u8, y: u8) -> &mut Tile {
+        let offset = y as uint * self.width as uint + x as uint;
+        self.tiles.index_mut(&offset)
+    }
+
+    pub fn set_tile(&mut self, x: u8, y: u8, tile: Tile) {
+        let offset = y as uint * self.width as uint + x as uint;
+        *self.tiles.index_mut(&offset) = tile;
+    }
+
+    pub fn apply_set_to(&mut self, set_to: &SetTo) {
+        for y in range(set_to.y, set_to.y + set_to.height) {
+            for x in range(set_to.x, set_to.x + set_to.width) {
+                self.set_tile(x as u8, y as u8, set_to.tile.clone());
+            }
+        }
     }
 
     pub fn iter(&self) -> LevelTileIterator {
@@ -172,7 +228,7 @@ impl Tiles {
         }
     }
 
-    fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
+    fn get_left_top_tile_coord(&self, rect: (f32, f32, f32, f32)) -> ((int, int), (int, int)) {
         use std::num::Float;
 
         let (x, y) = rect.left_top();
@@ -191,6 +247,12 @@ impl Tiles {
             (r, b)
         };
 
+        ((left, top), (right, bottom))
+    }
+
+    fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
+        let ((left, top), (right, bottom)) = self.get_left_top_tile_coord(rect);
+
         ([
             (self.get_tile(left as u8, top as u8), left, top),
             (self.get_tile(right as u8, top as u8), right, top),
@@ -199,7 +261,7 @@ impl Tiles {
         ], (left, top), (right, bottom))
     }
 
-    fn is_tile_inside(&self, rect: (f32, f32, f32, f32), tile_id: u16) -> Option<(u8, u8)> {
+    pub fn is_tile_inside(&self, rect: (f32, f32, f32, f32), tile_id: u16) -> Option<(u8, u8)> {
         let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
             if (*tile).tile_type.id-1 == tile_id {
@@ -213,6 +275,18 @@ impl Tiles {
         self.is_tile_inside(rect.offset(&self.screen, 0.0, 4.0), 0x15)
     }
 
+    pub fn is_key_entrance_beside(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
+        if let Some((x, y)) = self.is_tile_inside(rect.offset(&self.screen, -4.0, 0.0), 0x17) {
+            Some((x, y))
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_key_entrance(&mut self, x: u8, y: u8) {
+        self.set_tile(x, y, Tile::empty());
+    }
+
     pub fn has_non_blocking_tile(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
         let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
@@ -221,6 +295,17 @@ impl Tiles {
             }
         }
         None
+    }
+
+    pub fn take_coins(&mut self, rect: (f32, f32, f32, f32)) -> uint {
+        let mut count = 0;
+        while let Some((x, y)) = self.is_tile_inside(rect, 0x20) {
+            self.set_tile(x, y, Tile::empty());
+
+            count += 1;
+        }
+
+        count
     }
 }
 
@@ -234,7 +319,9 @@ pub struct Level {
     pub beanstalks: Vec<Beanstalk>,
     pub monsters1: Vec<Monster1>,
     pub monsters2: Vec<Monster2>,
-    pub sticky_keys: Vec<StickyKey>
+    pub sticky_keys: Vec<StickyKey>,
+    pub messages: Vec<Message>,
+    pub set_tos: Vec<SetTo>
 }
 
 impl Level {
@@ -246,6 +333,8 @@ impl Level {
 
     pub fn get_tiles(&self) -> &Tiles { &self.tiles }
 
+    pub fn get_tiles_mut(&mut self) -> &mut Tiles { &mut self.tiles }
+
     pub fn iter(&self) -> LevelTileIterator {
         self.tiles.iter()
     }
@@ -256,6 +345,16 @@ impl Level {
 
     pub fn level_size_as_u32(&self) -> (u32, u32) {
         (self.width as u32 * 16, self.height as u32 * 16)
+    }
+
+    pub fn trigger_set_to(&mut self, trigger: u8) -> bool {
+        let mut did_something = false;
+        for set_to in self.set_tos.iter().filter(|s| s.triggered_by == Some(trigger)) {
+            self.tiles.apply_set_to(set_to);
+            did_something = true;
+        }
+
+        did_something
     }
 }
 
@@ -325,12 +424,15 @@ fn parse_from_json(input: &str) -> Level {
     let mut monsters1: Vec<Monster1> = Vec::new();
     let mut monsters2: Vec<Monster2> = Vec::new();
     let mut sticky_keys: Vec<StickyKey> = Vec::new();
+    let mut messages: Vec<Message> = Vec::new();
+    let mut set_tos: Vec<SetTo> = Vec::new();
 
     for x in objects_json.iter() {
 
         let object = x.as_object().expect("Not a JSON object");
         let x = object.get("x").unwrap().as_f64().unwrap() as f32;
         let y = object.get("y").unwrap().as_f64().unwrap() as f32;
+        let width = object.get("width").unwrap().as_f64().unwrap() as f32;
         let height = object.get("height").unwrap().as_f64().unwrap() as f32;
         let properties = object.get("properties").unwrap().as_object().expect("Not a JSON object");
         let typ = object.get("type").unwrap().as_string().unwrap();
@@ -339,15 +441,18 @@ fn parse_from_json(input: &str) -> Level {
             "player" => { player_start_pos = (x, y); },
             "switch" => {
                 let trigger = parse_property_as_number(properties, "trigger").expect("Requires 'trigger'");
+                let triggered_by = parse_property_as_number(properties, "triggered_by");
 
                 switches.push(Switch {
                     x: x,
                     y: y,
-                    trigger: trigger
+                    trigger: trigger,
+                    triggered_by: triggered_by
                 });
             },
             "chest" => {
                 let trigger = parse_property_as_number(properties, "trigger");
+                let explode_trigger = parse_property_as_number(properties, "explode_trigger");
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
                 let poof = parse_property_as_boolean(properties, "poof");
                 let is_static = parse_property_as_boolean(properties, "static");
@@ -357,6 +462,7 @@ fn parse_from_json(input: &str) -> Level {
                     x: x,
                     y: y,
                     trigger: trigger,
+                    explode_trigger: explode_trigger,
                     triggered_by: triggered_by,
                     poof: poof,
                     is_static: is_static,
@@ -397,7 +503,49 @@ fn parse_from_json(input: &str) -> Level {
             "stickykey" => {
                 sticky_keys.push(StickyKey {
                     x: x,
-                    y: y
+                    y: y,
+                    fall_distance: height - 8.0
+                })
+            },
+            "message" => {
+                let triggered_by = parse_property_as_number(properties, "triggered_by");
+
+                let message_tiles = parse_tiles(properties, "tiles");
+                let w = (width / 16.0) as uint;
+                let h = (height / 16.0) as uint;
+
+                assert_eq!(message_tiles.len(), w*h);
+
+                messages.push(Message {
+                    x: x,
+                    y: y,
+                    width: w,
+                    height: h,
+                    tiles: message_tiles,
+                    triggered_by: triggered_by
+                })
+            },
+            "setto" => {
+                let triggered_by = parse_property_as_number(properties, "triggered_by");
+
+                let tile_id = parse_property_as_number(properties, "tile").expect("Reqires 'tile'");
+
+                let tile_x = (x / 16.0) as uint;
+                let tile_y = (y / 16.0) as uint;
+                let w = (width / 16.0) as uint;
+                let h = (height / 16.0) as uint;
+
+                set_tos.push(SetTo {
+                    x: tile_x,
+                    y: tile_y,
+                    width: w,
+                    height: h,
+                    tile: Tile {
+                        tile_type: TileType::from_id(tile_id),
+                        flip_x: false,
+                        flip_y: false
+                    },
+                    triggered_by: triggered_by
                 })
             }
             _ => panic!("Unknown type: {}", typ)
@@ -416,7 +564,22 @@ fn parse_from_json(input: &str) -> Level {
         beanstalks: beanstalks,
         monsters1: monsters1,
         monsters2: monsters2,
-        sticky_keys: sticky_keys
+        sticky_keys: sticky_keys,
+        messages: messages,
+        set_tos: set_tos
+    }
+}
+
+fn parse_tiles(properties: &serialize::json::Object, key: &str) -> Vec<u16> {
+    match properties.get(key) {
+        Some(j) => {
+            let value_str = j.as_string().expect("Not a JSON string");
+
+            value_str.split(' ').map(|num_str| {
+                FromStrRadix::from_str_radix(num_str, 16).expect("Not a base 16 number")
+            }).collect()
+        },
+        None => panic!("No tiles")
     }
 }
 

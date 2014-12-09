@@ -63,10 +63,11 @@ impl PlayerStateStand {
             if self.go(screen, tiles, 0.0, vy) {
                 0.0
             } else {
-                self.vel_y + 0.5
+                vy + 0.5
             }
         };
-        self.vel_y = vel_y;
+        self.vel_y = if vel_y > 10.0 { 10.0 }
+        else { vel_y };
     }
 
     fn run(&mut self, screen: &Screen, tiles: &Tiles, left: bool, right: bool) {
@@ -302,7 +303,8 @@ pub enum PlayerState {
 pub struct Player {
     pub state: PlayerState,
     pub drill: Option<PlayerItemDrill>,
-    pub gun: Option<PlayerItemGun>
+    pub gun: Option<PlayerItemGun>,
+    pub keys: uint
 }
 
 impl Player {
@@ -310,7 +312,8 @@ impl Player {
         Player {
             state: Player::get_initial_state(pos),
             drill: None,
-            gun: None
+            gun: None,
+            keys: 0
         }
     }
 
@@ -448,6 +451,24 @@ impl Player {
         }
     }
 
+    pub fn is_drilling(&self) -> bool {
+        match self.state {
+            PlayerState::Digging(_) => {
+                true
+            },
+            _ => false
+        }
+    }
+
+    pub fn is_jumping(&self) -> bool {
+        match self.state {
+            PlayerState::Emerging(_) => {
+                true
+            },
+            _ => false
+        }
+    }
+
     pub fn add_drill(&mut self) {
         self.drill = Some(PlayerItemDrill {
             phase: 0.0
@@ -493,6 +514,19 @@ impl Player {
             false
         } else {
             true
+        }
+    }
+
+    pub fn add_keys(&mut self, keys: uint) {
+        self.keys += keys;
+    }
+
+    pub fn try_use_key(&mut self) -> bool {
+        if self.keys > 0 {
+            self.keys -= 1;
+            true
+        } else {
+            false
         }
     }
 }

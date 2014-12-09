@@ -35,6 +35,8 @@ pub trait RectExt<S, P> {
     fn offset(&self, screen: &Screen, x: S, y: S) -> Self;
     fn set_x(&self, screen: &Screen, x: S) -> Self;
     fn set_y(&self, screen: &Screen, y: S) -> Self;
+    fn set_width(&self, width: S) -> Self;
+    fn set_height(&self, height: S) -> Self;
     fn x(&self) -> S;
     fn y(&self) -> S;
     fn width(&self) -> S;
@@ -60,6 +62,16 @@ impl RectExt<f32, (f32, f32)> for (f32, f32, f32, f32) {
 
     fn set_y(&self, screen: &Screen, y: f32) -> (f32, f32, f32, f32) {
         self.offset(screen, 0.0, y - self.y())
+    }
+
+    fn set_width(&self, width: f32) -> (f32, f32, f32, f32) {
+        let (x1, y1, _, y2) = *self;
+        (x1, y1, x1+width, y2)
+    }
+
+    fn set_height(&self, height: f32) -> (f32, f32, f32, f32) {
+        let (x1, y1, x2, _) = *self;
+        (x1, y1, x2, y1 + height)
     }
 
     fn x(&self) -> f32 { self.val0() }

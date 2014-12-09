@@ -8,6 +8,7 @@ use self::items::DynamicItems;
 use self::level::Level;
 use self::render::{GameRenderState};
 use self::player::Player;
+use self::rect::RectExt;
 
 mod audio;
 mod collision;
@@ -24,12 +25,14 @@ pub struct Game {
     pub items: DynamicItems,
     player: Player,
     scroll_x: f32,
-    scroll_y: f32
+    scroll_y: f32,
+    exited: bool
 }
 
 pub struct GameStepResult {
     viewport: (i32, i32),
-    projection_view: cgmath::Matrix4<f32>
+    projection_view: cgmath::Matrix4<f32>,
+    projection_view_parallax: cgmath::Matrix4<f32>,
 }
 
 impl Game {
@@ -53,7 +56,8 @@ impl Game {
             items: items,
             player: player,
             scroll_x: scroll_x,
-            scroll_y: 0.0
+            scroll_y: 0.0,
+            exited: false
         }
     }
 
@@ -76,7 +80,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             return Exit;
         }
 
-        let lock_scrolling = input.is_keycode_down(KeyCode::LCtrl) | input.is_keycode_down(KeyCode::RCtrl) | !self.player.is_alive();
+        let lock_scrolling = input.is_keycode_down(KeyCode::LCtrl) | input.is_keycode_down(KeyCode::RCtrl) | input.is_keycode_down(KeyCode::ScrollLock) | !self.player.is_alive();
         let fire = input.is_keycode_newly_down(KeyCode::Space) | input.is_mouse_button_newly_down(sdl2::mouse::LEFTMOUSESTATE);
         let up = input.is_keycode_down(KeyCode::Up) | input.is_keycode_down(KeyCode::W);
         let down = input.is_keycode_down(KeyCode::Down) | input.is_keycode_down(KeyCode::S);
@@ -86,6 +90,8 @@ impl GameStepper<Input, GameStepResult> for Game {
 
         let last_player_pos = self.player.get_pos();
         let last_player_is_walking = self.player.is_walking();
+        let last_player_is_drilling = self.player.is_drilling();
+        let last_player_is_jumping = self.player.is_jumping();
 
         if up {
             use self::rect::RectExt;
@@ -101,24 +107,45 @@ impl GameStepper<Input, GameStepResult> for Game {
             }
         }
 
+        let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
+            self.items.add_poof(last_player_pos.val0(), last_player_pos.val1());
+            true
+        } else {
+            false
+        };
+
+        if died {
+            self.player.die(self.level.player_start_pos);
+        }
+
         self.player.tick(&self.level.get_screen(), self.level.get_tiles(), up, down, left, right);
         let cur_player_pos = self.player.get_pos();
+        let cur_player_is_walking = self.player.is_walking();
+        let cur_player_is_drilling = self.player.is_drilling();
+        let cur_player_is_jumping = self.player.is_jumping();
+        let cur_player_rect = self.player.get_rect();
+
+        let mut got_useless_points = false;
 
         let got_item = if new_down {
-            let items = self.items.try_open_chest(self.player.get_rect());
+            let items = self.items.try_open_chest(cur_player_rect);
             let (px, py) = cur_player_pos;
 
             for item in items.iter() {
                 use self::items::ChestItem;
 
                 match item {
-                    &ChestItem::Drill => {
+                    &(_, _, ChestItem::Drill) => {
                         self.player.add_drill();
                     },
-                    &ChestItem::Gun => {
+                    &(_, _, ChestItem::Gun) => {
                         self.player.add_gun();
                     },
-                    _ => ()
+                    &(x, y, ChestItem::UselessPoints) => {
+                        self.items.add_useless_points(x, y);
+                        got_useless_points = true;
+                    },
+                    &(_, _, ChestItem::None) => ()
                 }
 
                 self.items.add_poof(px+5.0, py+5.0);
@@ -129,16 +156,49 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        self.items.step(&self.level.get_screen());
-
-        self.items.bullet_item_collision(self.level.get_tiles());
-
-        let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
-            self.items.add_poof(cur_player_pos.val0(), cur_player_pos.val1());
-            true
+        let used_key = if let Some((x, y)) = self.level.get_tiles().is_key_entrance_beside(cur_player_rect) {
+            if self.player.try_use_key() {
+                self.level.get_tiles_mut().remove_key_entrance(x, y);
+                true
+            } else {
+                false
+            }
         } else {
             false
         };
+
+        let got_key = match self.items.try_take_keys(cur_player_rect) {
+            0 => false,
+            amount => {
+                self.player.add_keys(amount);
+                true
+            }
+        };
+
+        let just_exited = if new_down {
+            if let Some((_x, _y)) = self.level.get_tiles().is_tile_inside(cur_player_rect, 0x2B) {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let new_coins = {
+            let screen = self.level.get_screen();
+            let rect = cur_player_rect.set_width(4.0).offset(&screen, 6.0, 0.0);
+            self.level.get_tiles_mut().take_coins(rect)
+        };
+
+        if just_exited {
+            self.exited = true;
+            self.items.trigger(255);
+            self.level.trigger_set_to(255);
+        }
+
+        self.items.step(&self.level.get_screen());
+        self.items.bullet_item_collision(self.level.get_tiles());
 
         let gun_fired = if fire {
             if let self::player::PlayerState::Stand(ref s) = self.player.state {
@@ -163,10 +223,6 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        if died {
-            self.player.die(self.level.player_start_pos);
-        }
-
         {
             let switch_triggers: Vec<u8> = {
                 let switches = match cur_player_pos {
@@ -181,17 +237,20 @@ impl GameStepper<Input, GameStepResult> for Game {
 
             for trigger in switch_triggers.iter() {
                 play_poof_sound |= self.items.trigger(*trigger);
+                play_poof_sound |= self.level.trigger_set_to(*trigger);
             }
-
-            let cur_player_is_walking = self.player.is_walking();
 
             let (_moved, destroyed) = if !lock_scrolling {
                 let (rel_x, rel_y) = self.level.get_screen().relative_wrap(last_player_pos, cur_player_pos);
 
                 match (rel_x, rel_y) {
                     (0.0, 0.0) => (false, false),
-                    (sx, _sy) => {
-                        self.scroll(sx, 0.0);
+                    (sx, sy) => {
+                        if self.exited {
+                            self.scroll(sx, sy);
+                        } else {
+                            self.scroll(sx, 0.0);
+                        }
                         self.items.adjust_to_scroll_boundary(&self.level.get_screen(), self.level.get_tiles(), self.scroll_x, rel_x > 0.0, rel_x < 0.0)
                     }
                 }
@@ -206,27 +265,36 @@ impl GameStepper<Input, GameStepResult> for Game {
                     _ => ()
                 };
 
-                if destroyed {
-                    audio.explode();
+                match (last_player_is_drilling, cur_player_is_drilling) {
+                    (false, true) => audio.start_drilling(),
+                    (true, false) => audio.stop_drilling(),
+                    _ => ()
+                };
+
+                match (last_player_is_jumping, cur_player_is_jumping) {
+                    (false, true) => audio.jump(),
+                    _ => ()
+                };
+
+                if destroyed { audio.explode(); }
+
+                if play_poof_sound { audio.poof(); }
+
+                if got_item { audio.item_get(); }
+
+                if got_useless_points { audio.nothing(); }
+
+                if got_key { audio.key_get(); }
+
+                if used_key { audio.unlock(); }
+
+                if gun_fired { audio.fire(); }
+
+                if new_coins > 0 {
+                    audio.coin();
                 }
 
-                if play_poof_sound {
-                    audio.poof();
-                }
-
-                if got_item {
-                    audio.item_get();
-                    audio.poof();
-                }
-
-                if gun_fired {
-                    audio.fire();
-                }
-
-                if died {
-                    audio.stop_walking();
-                    audio.die();
-                }
+                if died { audio.die(); }
             }
         }
 
@@ -239,9 +307,21 @@ impl GameStepper<Input, GameStepResult> for Game {
             1.0
         );
 
+        let parallax_rate = 0.5;
+
+        let projection_view_parallax = cgmath::ortho(
+            0.0 + self.scroll_x * parallax_rate,
+            self.level.width as f32 * 16.0 + self.scroll_x * parallax_rate,
+            self.level.height as f32 * 16.0 + self.scroll_y * parallax_rate,
+            0.0 + self.scroll_y * parallax_rate,
+            -1.0,
+            1.0
+        );
+
         Continue(GameStepResult {
             viewport: input.get_viewport(),
-            projection_view: projection_view
+            projection_view: projection_view,
+            projection_view_parallax: projection_view_parallax
         })
     }
 }

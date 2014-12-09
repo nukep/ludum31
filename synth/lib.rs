@@ -65,13 +65,11 @@ pub struct Controller<'a> {
     /// Maximum is tick_length.
     tick_remainder: uint,
 
-    /// The music channels always iterate, even if they're overridden by an effect
-    channel_music: [Option<Box<Iterator<ChannelEffectOut> + 'a>>, ..4],
-    channel_current_effect: [Option<Box<Iterator<ChannelEffectOut> + 'a>>, ..4]
+    channel_effects: Vec<[Option<Box<Iterator<ChannelEffectOut> + 'a>>, ..4]>
 }
 
 impl<'a> Controller<'a> {
-    pub fn new(sink_freq: f32, tick_length_s: f32) -> Controller<'a> {
+    pub fn new(sink_freq: f32, tick_length_s: f32, layers: uint) -> Controller<'a> {
         use std::default::Default;
 
         let tick_length = (tick_length_s * sink_freq) as uint;
@@ -82,8 +80,7 @@ impl<'a> Controller<'a> {
             sink_freq: sink_freq,
             tick_length: tick_length,
             tick_remainder: tick_length,
-            channel_music: [None, None, None, None],
-            channel_current_effect: [None, None, None, None]
+            channel_effects: Vec::from_fn(layers, |_| [None, None, None, None])
         }
     }
 
@@ -96,20 +93,18 @@ impl<'a> Controller<'a> {
         for x in out.iter_mut() { *x *= self.volume; }
     }
 
-    pub fn set_music(&mut self, channel: uint, effect: Box<Iterator<ChannelEffectOut> + 'a>) {
-        self.channel_music[channel] = Some(effect);
+    fn get_layer(&mut self, layer: uint) -> &mut [Option<Box<Iterator<ChannelEffectOut> + 'a>>, ..4] {
+        self.channel_effects.index_mut(&layer)
     }
 
-    pub fn clear_music(&mut self, channel: uint) {
-        self.channel_music[channel] = None;
+    pub fn set_effect(&mut self, layer: uint, channel: uint, effect: Box<Iterator<ChannelEffectOut> + 'a>) {
+        let mut layer = self.get_layer(layer);
+        layer[channel] = Some(effect);
     }
 
-    pub fn set_effect(&mut self, channel: uint, effect: Box<Iterator<ChannelEffectOut> + 'a>) {
-        self.channel_current_effect[channel] = Some(effect);
-    }
-
-    pub fn clear_effect(&mut self, channel: uint) {
-        self.channel_current_effect[channel] = None;
+    pub fn clear_effect(&mut self, layer: uint, channel: uint) {
+        let mut layer = self.get_layer(layer);
+        layer[channel] = None;
     }
 
     fn generate_tick(&mut self, out: &mut [f32], offset: uint) -> uint {
@@ -157,14 +152,11 @@ impl<'a> Controller<'a> {
         self.generator.triangle.silence();
         self.generator.noise.silence();
 
-        tick_channel(&mut self.generator.pulse1, &mut self.channel_music[0], self.sink_freq);
-        tick_channel(&mut self.generator.pulse2, &mut self.channel_music[1], self.sink_freq);
-        tick_channel(&mut self.generator.triangle, &mut self.channel_music[2], self.sink_freq);
-        tick_channel(&mut self.generator.noise, &mut self.channel_music[3], self.sink_freq);
-
-        tick_channel(&mut self.generator.pulse1, &mut self.channel_current_effect[0], self.sink_freq);
-        tick_channel(&mut self.generator.pulse2, &mut self.channel_current_effect[1], self.sink_freq);
-        tick_channel(&mut self.generator.triangle, &mut self.channel_current_effect[2], self.sink_freq);
-        tick_channel(&mut self.generator.noise, &mut self.channel_current_effect[3], self.sink_freq);
+        for layer in self.channel_effects.iter_mut() {
+            tick_channel(&mut self.generator.pulse1, &mut layer[0], self.sink_freq);
+            tick_channel(&mut self.generator.pulse2, &mut layer[1], self.sink_freq);
+            tick_channel(&mut self.generator.triangle, &mut layer[2], self.sink_freq);
+            tick_channel(&mut self.generator.noise, &mut layer[3], self.sink_freq);
+        }
     }
 }

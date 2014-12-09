@@ -24,7 +24,7 @@ impl GameRenderState {
             Err(e) => panic!("{}", e)
         };
 
-        let tileset_vao = shape::gen_tileset(8, 8, a_position, a_texture_uv);
+        let tileset_vao = shape::gen_tileset(8, 9, a_position, a_texture_uv);
 
         GameRenderState {
             tileset: tileset,
@@ -42,8 +42,6 @@ impl GameRenderState {
         unsafe {
             let (w, h) = step_result.viewport;
             gl::Viewport(0, 0, w, h);
-            gl::ClearColor(0.1, 0.1, 0.15, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::BLEND);
         };
 
@@ -51,7 +49,6 @@ impl GameRenderState {
         let u_model = self.shader_program.get_uniform("model");
 
         self.shader_program.use_program(|uniform| {
-            uniform.set_mat4(u_projection_view, step_result.projection_view.as_fixed());
             unsafe {
                 gl::Enable(gl::TEXTURE_2D);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -99,6 +96,16 @@ impl GameRenderState {
                     draw_tile(x + width, y + height, id, flip, rotate_90);
                 };
 
+                uniform.set_mat4(u_projection_view, step_result.projection_view_parallax.as_fixed());
+                // Draw parallax
+                for y in range(0, game.level.height) {
+                    for x in range(0, game.level.width) {
+                        draw_tile_all(x as f32 * 16.0, y as f32 * 16.0, 0x46, (false, false), false);
+                    }
+                }
+
+
+                uniform.set_mat4(u_projection_view, step_result.projection_view.as_fixed());
                 // Draw all background tiles
                 for (x, y, tile) in game.level.iter() {
                     if tile.tile_type.id > 0 {
@@ -110,8 +117,24 @@ impl GameRenderState {
                     }
                 }
 
+                // Draw messages
+                for message in game.items.messages.iter().filter(|m| m.visible) {
+                    let mut i = 0u;
+                    for tile_id in message.tiles.iter() {
+                        let offset_x = i % message.width;
+                        let offset_y = i / message.width;
+
+                        let x = message.x + offset_x as f32 * 16.0;
+                        let y = message.y + offset_y as f32 * 16.0;
+
+                        draw_tile_all(x, y, *tile_id, (false, false), false);
+
+                        i += 1;
+                    }
+                }
+
                 // Draw switches
-                for switch in game.items.switches.iter() {
+                for switch in game.items.switches.iter().filter(|t| t.visible) {
                     let tile = match switch.is_down {
                         false => 0x18,
                         true => 0x19
@@ -269,6 +292,12 @@ impl GameRenderState {
                         false => 0x2F
                     };
                     draw_tile_all(Float::floor(key.x), Float::floor(key.y), tile, (false, false), false);
+                }
+
+                // Draw useless
+                for useless in game.items.useless.iter() {
+                    let tile = 0x45;
+                    draw_tile_all(Float::floor(useless.x), Float::floor(useless.y), tile, (false, false), false);
                 }
 
                 // Draw poofs
