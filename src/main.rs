@@ -16,7 +16,13 @@ mod util;
 // Statically link SDL2 (libSDL2.a)
 // Link the required Windows dependencies
 #[cfg(target_os="windows")]
-#[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid -Wl,--subsystem,windows"]
+#[cfg(feature="statically-link-sdl2")]
+#[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid"]
+extern {}
+
+#[cfg(target_os="windows")]
+#[cfg(feature="no-console")]
+#[link_args = "-Wl,--subsystem,windows"]
 extern {}
 
 fn main() {

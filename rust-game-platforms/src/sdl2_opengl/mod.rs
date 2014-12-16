@@ -280,12 +280,14 @@ impl<StepResult, GL, S, PG: GameStepper<Input, StepResult> + GameRenderer<Render
             fps_meter.meter_frame();
 
             // Show FPS when it changes
-            match fps_meter_change.value(fps_meter.get_fps()) {
-                Some(fps) => match fps {
-                    Some(fps) => (),
-                    None => ()  // no FPS recorded
-                },
-                None => ()      //no change
+            if cfg!(feature="print-fps") {
+                match fps_meter_change.value(fps_meter.get_fps()) {
+                    Some(fps) => match fps {
+                        Some(fps) => println!("{} FPS", fps),
+                        None => ()  // no FPS recorded
+                    },
+                    None => ()      //no change
+                }
             }
 
             last_time = current_time;
