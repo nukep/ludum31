@@ -23,4 +23,4 @@ git = "https://github.com/rust-lang/time"
 path = "synth"
 
 [dependencies.lodepng]
-git = "https://github.com/nukep/lodepng-rust"
+git = "https://github.com/pornel/lodepng-rust"

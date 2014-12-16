@@ -1,6 +1,4 @@
 #![feature(link_args)]
-#![feature(if_let)]
-#![feature(while_let)]
 
 extern crate cgmath;
 extern crate game_platforms;

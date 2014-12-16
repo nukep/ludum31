@@ -76,6 +76,7 @@ impl Chest {
     }
 }
 
+#[deriving(Copy)]
 pub enum ChestItem {
     UselessPoints,
     Drill,

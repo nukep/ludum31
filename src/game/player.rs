@@ -26,6 +26,7 @@ pub struct PlayerItemDrill {
 
 pub struct PlayerItemGun;
 
+#[deriving(Copy)]
 pub enum PlayerStandDirection {
     Left,
     Right
@@ -40,6 +41,7 @@ impl PlayerStandDirection {
     }
 }
 
+#[deriving(Copy)]
 pub enum PlayerDiggingDirection {
     Up,
     Down,
