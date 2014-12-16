@@ -144,11 +144,6 @@ impl Tiles {
         self.tiles.index(&offset)
     }
 
-    fn get_tile_mut(&mut self, x: u8, y: u8) -> &mut Tile {
-        let offset = y as uint * self.width as uint + x as uint;
-        self.tiles.index_mut(&offset)
-    }
-
     pub fn set_tile(&mut self, x: u8, y: u8, tile: Tile) {
         let offset = y as uint * self.width as uint + x as uint;
         *self.tiles.index_mut(&offset) = tile;
