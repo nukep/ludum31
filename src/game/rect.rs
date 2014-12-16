@@ -74,10 +74,10 @@ impl RectExt<f32, (f32, f32)> for (f32, f32, f32, f32) {
         (x1, y1, x2, y1 + height)
     }
 
-    fn x(&self) -> f32 { self.val0() }
-    fn y(&self) -> f32 { self.val1() }
-    fn width(&self) -> f32 { self.val2() - self.val0() }
-    fn height(&self) -> f32 { self.val3() - self.val1() }
+    fn x(&self) -> f32 { self.0 }
+    fn y(&self) -> f32 { self.1 }
+    fn width(&self) -> f32 { self.2 - self.0 }
+    fn height(&self) -> f32 { self.3 - self.1 }
 
     fn left_top(&self) -> (f32, f32) { (self.x(), self.y()) }
     fn size(&self) -> (f32, f32) { (self.width(), self.height()) }

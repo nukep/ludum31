@@ -467,7 +467,7 @@ impl DynamicItems {
             if phase >= 1.0 { phase = 1.0; }
 
             let new_coord = screen.wrap_coord((bullet.x + bullet.vel_x, bullet.y));
-            let x = new_coord.val0();
+            let x = new_coord.0;
 
             if bullet.timeout - 1 == 0 {
                 None

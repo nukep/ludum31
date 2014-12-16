@@ -114,8 +114,8 @@ impl PlayerStateStand {
 
     fn go(&mut self, screen: &Screen, tiles: &Tiles, x_delta: f32, y_delta: f32) -> bool {
         let new_coord = screen.wrap_coord((self.x + x_delta, self.y + y_delta));
-        self.x = new_coord.val0();
-        self.y = new_coord.val1();
+        self.x = new_coord.0;
+        self.y = new_coord.1;
 
         let direction = into_direction(y_delta < 0.0, y_delta > 0.0, x_delta < 0.0, x_delta > 0.0);
 
@@ -248,8 +248,9 @@ impl PlayerStateEmerging {
             let x_phase = self.phase.powf(3.0);
 
             let new_coord = screen.wrap_coord((lerp(self.from_x, self.to_x, x_phase), lerp(self.from_y, self.to_y, y_phase)));
-            self.x = new_coord.val0();
-            self.y = new_coord.val1();
+            self.x = new_coord.0;
+            self.y = new_coord.1;
+            
             None
         }
     }

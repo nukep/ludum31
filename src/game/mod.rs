@@ -108,7 +108,7 @@ impl GameStepper<Input, GameStepResult> for Game {
         }
 
         let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
-            self.items.add_poof(last_player_pos.val0(), last_player_pos.val1());
+            self.items.add_poof(last_player_pos.0, last_player_pos.1);
             true
         } else {
             false
@@ -211,7 +211,7 @@ impl GameStepper<Input, GameStepResult> for Game {
                         Right => ((px+20.0, py+12.0), 8.0)
                     };
                     let new_coord = self.level.get_screen().wrap_coord(bullet_coord);
-                    self.items.add_bullet(new_coord.val0(), new_coord.val1(), vel_x);
+                    self.items.add_bullet(new_coord.0, new_coord.1, vel_x);
                     true
                 } else {
                     false
