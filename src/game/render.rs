@@ -35,8 +35,7 @@ impl GameRenderState {
 
     pub fn render(&mut self, game: &Game, step_result: &GameStepResult) {
         use gl;
-        use cgmath::{Matrix4, FixedArray};
-        use util::matrix::MatrixBuilder;
+        use cgmath::FixedArray;
         use std::num::Float;
 
         unsafe {
@@ -55,52 +54,23 @@ impl GameRenderState {
             };
             self.tileset.bind(0);
             self.tileset_vao.bind_vao(|vao_ctx| {
-                let draw_tile = |x: f32, y: f32, id: u16, flip: (bool, bool), rotate_90: bool| {
-                    let (flip_x, flip_y) = flip;
-
-                    let mut model = Matrix4::identity()
-                        .translate(x, y, 0.0)
-                        .scale(16.0, 16.0, 0.0);
-                    if flip_x {
-                        model = model
-                            .translate(1.0, 0.0, 0.0)
-                            .scale(-1.0, 1.0, 1.0);
-                    }
-                    if flip_y {
-                        model = model
-                            .translate(0.0, 1.0, 0.0)
-                            .scale(1.0, -1.0, 1.0);
-                    }
-                    if rotate_90 {
-                        use std::f32::consts::FRAC_PI_2;
-                        model = model
-                        .translate(1.0, 0.0, 0.0)
-                        .rotate_z(FRAC_PI_2);
-                    }
-                    uniform.set_mat4(u_model, model.as_fixed());
-                    vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
-                };
                 let tile_size = 16.0;
-                let (width, height) = (game.level.width as f32 * tile_size, game.level.height as f32 * tile_size);
-
+                let tileset_drawer = TilesetDrawer {
+                    screen_size: (game.level.width as f32 * tile_size, game.level.height as f32 * tile_size),
+                    draw: |&: id, model| {
+                        uniform.set_mat4(u_model, model);
+                        vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
+                    }
+                };
                 let draw_tile_all = |x: f32, y: f32, id: u16, flip: (bool, bool), rotate_90: bool| {
-                    // FIXME
-                    draw_tile(x - width, y - height, id, flip, rotate_90);
-                    draw_tile(x, y - height, id, flip, rotate_90);
-                    draw_tile(x + width, y - height, id, flip, rotate_90);
-                    draw_tile(x - width, y, id, flip, rotate_90);
-                    draw_tile(x, y, id, flip, rotate_90);
-                    draw_tile(x + width, y, id, flip, rotate_90);
-                    draw_tile(x - width, y + height, id, flip, rotate_90);
-                    draw_tile(x, y + height, id, flip, rotate_90);
-                    draw_tile(x + width, y + height, id, flip, rotate_90);
+                    tileset_drawer.draw_tile((x, y), id, flip, rotate_90);
                 };
 
                 uniform.set_mat4(u_projection_view, step_result.projection_view_parallax.as_fixed());
                 // Draw parallax
                 for y in range(0, game.level.height) {
                     for x in range(0, game.level.width) {
-                        draw_tile_all(x as f32 * 16.0, y as f32 * 16.0, 0x46, (false, false), false);
+                        draw_tile_all(x as f32 * tile_size, y as f32 * tile_size, 0x46, (false, false), false);
                     }
                 }
 
@@ -124,8 +94,8 @@ impl GameRenderState {
                         let offset_x = i % message.width;
                         let offset_y = i / message.width;
 
-                        let x = message.x + offset_x as f32 * 16.0;
-                        let y = message.y + offset_y as f32 * 16.0;
+                        let x = message.x + offset_x as f32 * tile_size;
+                        let y = message.y + offset_y as f32 * tile_size;
 
                         draw_tile_all(x, y, *tile_id, (false, false), false);
 
@@ -149,7 +119,7 @@ impl GameRenderState {
                             0 => 0x0E,
                             _ => 0x0F
                         };
-                        draw_tile_all(Float::floor(beanstalk.x), Float::floor(beanstalk.y + y as f32 * 16.0), tile, (false, false), false);
+                        draw_tile_all(Float::floor(beanstalk.x), Float::floor(beanstalk.y + y as f32 * tile_size), tile, (false, false), false);
                     }
                 }
 
@@ -332,6 +302,55 @@ impl GameRenderState {
                 // match game.player.state { }
             });
         });
+    }
+}
+
+struct TilesetDrawer<'a, F: Fn(u16, &[[f32, ..4], ..4]) + 'a> {
+    screen_size: (f32, f32),
+    draw: F,
+}
+
+impl<'a, F: Fn(u16, &[[f32, ..4], ..4])> TilesetDrawer<'a, F> {
+    pub fn draw_tile(&self, (x, y): (f32, f32), id: u16, flip: (bool, bool), rotate_90: bool) {
+        let (width, height) = self.screen_size;
+
+        self.draw_tile_single(x - width, y - height, id, flip, rotate_90);
+        self.draw_tile_single(x, y - height, id, flip, rotate_90);
+        self.draw_tile_single(x + width, y - height, id, flip, rotate_90);
+        self.draw_tile_single(x - width, y, id, flip, rotate_90);
+        self.draw_tile_single(x, y, id, flip, rotate_90);
+        self.draw_tile_single(x + width, y, id, flip, rotate_90);
+        self.draw_tile_single(x - width, y + height, id, flip, rotate_90);
+        self.draw_tile_single(x, y + height, id, flip, rotate_90);
+        self.draw_tile_single(x + width, y + height, id, flip, rotate_90);
+    }
+
+    fn draw_tile_single(&self, x: f32, y: f32, id: u16, (flip_x, flip_y): (bool, bool), rotate_90: bool) {
+        use cgmath::{Matrix4, FixedArray};
+        use util::matrix::MatrixBuilder;
+
+        let mut model = Matrix4::identity()
+            .translate(x, y, 0.0)
+            .scale(16.0, 16.0, 0.0);
+
+        if flip_x {
+            model = model
+                .translate(1.0, 0.0, 0.0)
+                .scale(-1.0, 1.0, 1.0);
+        }
+        if flip_y {
+            model = model
+                .translate(0.0, 1.0, 0.0)
+                .scale(1.0, -1.0, 1.0);
+        }
+        if rotate_90 {
+            use std::f32::consts::FRAC_PI_2;
+            model = model
+                .translate(1.0, 0.0, 0.0)
+                .rotate_z(FRAC_PI_2);
+        }
+
+        (self.draw)(id, model.as_fixed());
     }
 }
 
