@@ -67,7 +67,7 @@ impl GameRenderState {
                     }
                 };
                 let draw_tile_all = |x: f32, y: f32, id: u16, flip: (bool, bool), rotate_90: bool| {
-                    tileset_drawer.draw_tile((x, y), id, flip, rotate_90);
+                    tileset_drawer.draw((x, y), id, flip, rotate_90);
                 };
 
                 uniform.set_mat4(u_projection_view, step_result.projection_view_parallax.as_fixed());
