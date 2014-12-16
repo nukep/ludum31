@@ -133,14 +133,7 @@ impl GameRenderState {
                         true => 0,
                         false => 5
                     };
-                    let tile = match chest.phase*5.0 {
-                        0.0...1.0 => 0x04,
-                        1.0...2.0 => 0x05,
-                        2.0...3.0 => 0x06,
-                        3.0...4.0 => 0x07,
-                        4.0...5.0 => 0x08,
-                        _ => 0x08
-                    } + tile_offset;
+                    let tile = tile_from_phase(&[0x04, 0x05, 0x06, 0x07, 0x08], chest.phase) + tile_offset;
                     draw_tile_all(Float::floor(chest.x), Float::floor(chest.y)+3.0, tile, (false, false), false);
                 }
 
@@ -151,14 +144,9 @@ impl GameRenderState {
                     match game.player.state {
                         PlayerState::Stand(ref s) => {
                             let tile = if let Some(phase) = s.running_cycle {
-                                match phase * 3.0 {
-                                    0.0...1.0 => 1,
-                                    1.0...2.0 => 2,
-                                    2.0...3.0 => 3,
-                                    _ => 3
-                                }
+                                tile_from_phase(&[0x01, 0x02, 0x03], phase)
                             } else {
-                                0
+                                0x00
                             };
                             draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip(), false);
                             if let Some(_) = game.player.gun {
@@ -171,13 +159,7 @@ impl GameRenderState {
                                 };
                                 draw_tile_all(Float::floor(s.x)+x_offset, Float::floor(s.y)+5.0, tile, s.direction.get_flip(), false);
                             } else if let Some(ref drill) = game.player.drill {
-                                let tile = match drill.phase * 4.0 {
-                                    0.0...1.0 => 0x23,
-                                    1.0...2.0 => 0x24,
-                                    2.0...3.0 => 0x25,
-                                    3.0...4.0 => 0x36,
-                                    _ => 0x36
-                                };
+                                let tile = tile_from_phase(&[0x23, 0x24, 0x25, 0x36], drill.phase);
 
                                 let (flip_x, _) = s.direction.get_flip();
                                 let x_offset = match flip_x {
@@ -197,17 +179,10 @@ impl GameRenderState {
                                 Right => (0x38, false)
                             };
 
-                            let drill_phase = if let Some(ref drill) = game.player.drill {
-                                drill.phase
+                            let drill_tile = if let Some(ref drill) = game.player.drill {
+                                tile_from_phase(&[0x23, 0x24, 0x25, 0x36], drill.phase)
                             } else { panic!("Player is supposed to have drill!"); };
 
-                            let drill_tile: u16 = match drill_phase * 4.0 {
-                                0.0...1.0 => 0x23,
-                                1.0...2.0 => 0x24,
-                                2.0...3.0 => 0x25,
-                                3.0...4.0 => 0x36,
-                                _ => 0x36
-                            };
                             let (drill_behind, drill_flip, drill_rotate_90, drill_x, drill_y) = match s.direction {
                                 Up => (true, (false, true), true, 0.0, -8.0),
                                 Down => (false, (false, false), true, 0.0, 8.0),
@@ -242,20 +217,12 @@ impl GameRenderState {
 
                 // Draw monsters
                 for monster1 in game.items.monsters1.iter().filter(|m| m.visible ) {
-                    let tile = match monster1.phase * 2.0 {
-                        0.0...1.0 => 0x26,
-                        0.0...2.0 => 0x27,
-                        _ => 0x27
-                    };
+                    let tile = tile_from_phase(&[0x26, 0x27], monster1.phase);
                     draw_tile_all(Float::floor(monster1.x), Float::floor(monster1.y), tile, (false, false), false);
                 }
 
                 for monster2 in game.items.monsters2.iter().filter(|m| m.visible ) {
-                    let tile = match monster2.phase * 2.0 {
-                        0.0...1.0 => 0x28,
-                        0.0...2.0 => 0x29,
-                        _ => 0x27
-                    };
+                    let tile = tile_from_phase(&[0x28, 0x29], monster2.phase);
                     draw_tile_all(Float::floor(monster2.x), Float::floor(monster2.y), tile, (false, false), false);
                 }
 
@@ -276,37 +243,28 @@ impl GameRenderState {
 
                 // Draw poofs
                 for poof in game.items.poofs.iter() {
-                    let tile = match poof.phase*6.0 {
-                        0.0...1.0 => 0x1A,
-                        1.0...2.0 => 0x1B,
-                        2.0...3.0 => 0x1C,
-                        3.0...4.0 => 0x1D,
-                        4.0...5.0 => 0x1E,
-                        5.0...6.0 => 0x1F,
-                        _ => 0x1F
-                    };
+                    let tile = tile_from_phase(&[0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F], poof.phase);
                     draw_tile_all(Float::floor(poof.x), Float::floor(poof.y), tile, (false, false), false);
                 }
 
                 // Draw bullets
                 for bullet in game.items.bullets.iter() {
-                    let tile = match bullet.phase * 4.0 {
-                        0.0...1.0 => 0x3C,
-                        1.0...2.0 => 0x3D,
-                        2.0...3.0 => 0x3E,
-                        3.0...4.0 => 0x3F,
-                        _ => 0x3F
-                    };
+                    let tile = tile_from_phase(&[0x3C, 0x3D, 0x3E, 0x3F], bullet.phase);
                     let flip_x = bullet.vel_x < 0.0;
                     let offset_x = if flip_x { -16.0 } else { 0.0 };
 
                     draw_tile_all(Float::floor(bullet.x) + offset_x, Float::floor(bullet.y) - 8.0, tile, (flip_x, false), false);
                 }
-
-                // match game.player.state { }
             });
         });
     }
+}
+
+fn tile_from_phase(tiles: &[u16], phase: f32) -> u16 {
+    let i = phase * tiles.len() as f32;
+    let tile_index = if i < 0.0 { 0 } else if i >= tiles.len() as f32 { tiles.len() - 1 } else { i as uint };
+
+    tiles[tile_index]
 }
 
 fn load_default_program() -> Program {
