@@ -30,15 +30,16 @@ fn main() {
 
     let game = game::Game::new();
 
-    let load_gl = || {
+    let init_renderer = |:| {
         gl::load_with(|s: &str| unsafe {
             use std;
             match sdl2::video::gl_get_proc_address(s) {
                 Some(ptr) => std::mem::transmute(ptr),
                 None => std::ptr::null()
             }
-            });
-        ((), game::render::GameRenderState::new())
+        });
+
+        game::render::Renderer::new()
     };
 
     let scale = 2;
@@ -47,7 +48,7 @@ fn main() {
         (w, h) => (w as int * scale, h as int * scale)
     };
 
-    let render_ctx = match RenderContext::new("Mr. Scroll", size, (3, 0), load_gl) {
+    let render_ctx = match RenderContext::new("Mr. Scroll", size, (3, 0), init_renderer) {
         Ok(ctx) => ctx,
         Err(e) => panic!("{}", e)
     };

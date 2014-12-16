@@ -2,18 +2,19 @@ use util::png;
 use opengl_util::shader::Program;
 use opengl_util::texture::Texture2D;
 use opengl_util::vertex::VertexArray;
+use game_platforms::GameRenderer;
 use super::{Game, GameStepResult};
 
 mod tileset;
 
-pub struct GameRenderState {
+pub struct Renderer {
     tileset: Texture2D,
     tileset_vao: VertexArray,
     shader_program: Program
 }
 
-impl GameRenderState {
-    pub fn new() -> GameRenderState {
+impl Renderer {
+    pub fn new() -> Renderer {
         use opengl_util::shape;
 
         let shader_program = load_default_program();
@@ -28,14 +29,18 @@ impl GameRenderState {
 
         let tileset_vao = shape::gen_tileset(8, 9, a_position, a_texture_uv);
 
-        GameRenderState {
+        Renderer {
             tileset: tileset,
             tileset_vao: tileset_vao,
             shader_program: shader_program
         }
     }
+}
 
-    pub fn render(&mut self, game: &Game, step_result: &GameStepResult) {
+impl GameRenderer<Game, GameStepResult> for Renderer {
+    fn frame_limit(&self) -> Option<u32> { None }
+
+    fn render(&mut self, game: &Game, step_result: &GameStepResult) {
         use gl;
         use cgmath::FixedArray;
         use std::num::Float;

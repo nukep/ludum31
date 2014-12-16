@@ -14,8 +14,8 @@ pub trait GameStepper<I, SR> {
     fn step(&mut self, input: &I) -> PlatformStepResult<SR>;
 }
 
-pub trait GameRenderer<R, SR> {
-    fn render(&self, step_result: &SR, ctx: &mut R);
+pub trait GameRenderer<GameStepper, StepResult> {
+    fn render(&mut self, game: &GameStepper, &step_result: &StepResult);
 
     fn frame_limit(&self) -> Option<u32> { None }
 }

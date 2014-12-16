@@ -135,14 +135,11 @@ impl Input {
     pub fn get_fps(&self) -> Option<f64> { self.current_frame.fps }
 }
 
-pub type GetGLContext<'a, GL, RenderState> = ||:'a -> (GL, RenderState);
-
-pub struct RenderContext<GL, RenderState> {
+pub struct RenderContext<Renderer> {
     _rs: RenderSubsystem,
     window: sdl2::video::Window,
     _gl_context: sdl2::video::GLContext,
-    pub gl: GL,
-    pub state: RenderState
+    pub renderer: Renderer
 }
 
 /// An empty struct that initializes and quits the SDL subsystems in RAII fashion
@@ -156,8 +153,9 @@ impl Drop for RenderSubsystem {
     fn drop(&mut self) { sdl2::quit_subsystem(sdl2::INIT_VIDEO); }
 }
 
-impl<GL, S> RenderContext<GL, S> {
-    pub fn new(title: &str, initial_size: (int, int), gl_version: (int, int), load_gl: GetGLContext<GL, S>) -> Result<RenderContext<GL, S>, String> {
+impl<Renderer> RenderContext<Renderer> {
+    pub fn new<F: FnOnce() -> Renderer>(title: &str, (width, height): (int, int), gl_version: (int, int), init_renderer: F)
+    -> Result<RenderContext<Renderer>, String> {
         let rs = RenderSubsystem::init();
 
         match gl_version {
@@ -174,8 +172,6 @@ impl<GL, S> RenderContext<GL, S> {
             sdl2::video::GLProfile::GLCoreProfile as int
         );
 
-        let (width, height) = initial_size;
-
         let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width, height, sdl2::video::OPENGL | sdl2::video::SHOWN) {
             Ok(window) => window,
             Err(err) => return Err(format!("failed to create window: {}", err))
@@ -186,14 +182,13 @@ impl<GL, S> RenderContext<GL, S> {
             Err(err) => return Err(format!("failed to create context: {}", err))
         };
 
-        let (gl, state) = load_gl();
+        let renderer = init_renderer();
 
         Ok(RenderContext {
             _rs: rs,
             window: window,
             _gl_context: gl_context,
-            gl: gl,
-            state: state
+            renderer: renderer
         })
     }
 
@@ -204,15 +199,15 @@ impl<GL, S> RenderContext<GL, S> {
     }
 }
 
-pub struct Platform<StepResult, GL, S, PG: GameStepper<Input, StepResult> + GameRenderer<RenderContext<GL, S>, StepResult>> {
-    render_ctx: RenderContext<GL, S>,
-    game: PG,
+pub struct Platform<StepResult, Renderer, Stepper> {
+    render_ctx: RenderContext<Renderer>,
+    game: Stepper,
 
     mouse_wheel_absolute: (int, int)
 }
 
-impl<StepResult, GL, S, PG: GameStepper<Input, StepResult> + GameRenderer<RenderContext<GL, S>, StepResult>> Platform<StepResult, GL, S, PG> {
-    pub fn new(game: PG, render_ctx: RenderContext<GL, S>) -> Result<Platform<StepResult, GL, S, PG>, String> {
+impl<StepResult, Stepper: GameStepper<Input, StepResult>, Renderer: GameRenderer<Stepper, StepResult>> Platform<StepResult, Renderer, Stepper> {
+    pub fn new(game: Stepper, render_ctx: RenderContext<Renderer>) -> Result<Platform<StepResult, Renderer, Stepper>, String> {
         Ok(Platform {
             game: game,
             render_ctx: render_ctx,
@@ -220,7 +215,7 @@ impl<StepResult, GL, S, PG: GameStepper<Input, StepResult> + GameRenderer<Render
         })
     }
 
-    pub fn run(mut self) -> Result<PG, String> {
+    pub fn run(mut self) -> Result<Stepper, String> {
         let step_interval: f64 = 1.0/(GameStepper::steps_per_second() as f64);
 
         let mut last_time: f64 = time::precise_time_s();
@@ -261,11 +256,11 @@ impl<StepResult, GL, S, PG: GameStepper<Input, StepResult> + GameRenderer<Render
                 input.push_current_frame();
             }
 
-            self.game.render(&last_step_result, &mut self.render_ctx);
+            self.render_ctx.renderer.render(&self.game, &last_step_result);
 
             self.render_ctx.window.gl_swap_window();
 
-            match self.game.frame_limit() {
+            match self.render_ctx.renderer.frame_limit() {
                 Some(fps) => {
                     let d = time::precise_time_s() - current_time;
                     let ms = 1000/fps as int - (d*1000.0) as int;

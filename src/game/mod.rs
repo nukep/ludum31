@@ -1,12 +1,11 @@
 use sdl2;
 
 use cgmath;
-use game_platforms::{PlatformStepResult, GameStepper, GameRenderer};
-use game_platforms::sdl2_opengl::{Input, RenderContext};
+use game_platforms::{PlatformStepResult, GameStepper};
+use game_platforms::sdl2_opengl::Input;
 use self::audio::Audio;
 use self::items::DynamicItems;
 use self::level::Level;
-use self::render::{GameRenderState};
 use self::player::Player;
 use self::rect::RectExt;
 
@@ -324,12 +323,4 @@ impl GameStepper<Input, GameStepResult> for Game {
             projection_view_parallax: projection_view_parallax
         })
     }
-}
-
-impl GameRenderer<RenderContext<(), GameRenderState>, GameStepResult> for Game {
-    fn render(&self, step_result: &GameStepResult, ctx: &mut RenderContext<(), GameRenderState>) {
-        ctx.state.render(self, step_result);
-    }
-
-    fn frame_limit(&self) -> Option<u32> { None }
 }
