@@ -8,8 +8,6 @@ extern crate synth;
 extern crate lodepng;
 extern crate serialize;
 
-use std::sync::{Arc, Mutex};
-
 mod game;
 #[allow(dead_code)]
 mod opengl_util;
@@ -20,21 +18,6 @@ mod util;
 #[cfg(target_os="windows")]
 #[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid -Wl,--subsystem,windows"]
 extern {}
-
-/// Read and lock a mutex value infinitely
-pub struct MutexIterator<T: Send> {
-    mutex: Arc<Mutex<T>>
-}
-
-impl<T: Clone + Send> Iterator<T> for MutexIterator<T> {
-    fn next(&mut self) -> Option<T> {
-        let value: T = {
-            let lock = (*self.mutex).lock();
-            lock.clone()
-        };
-        Some(value)
-    }
-}
 
 fn main() {
     use game_platforms::sdl2_opengl::{Platform, RenderContext};
