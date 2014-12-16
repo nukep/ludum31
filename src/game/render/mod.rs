@@ -4,6 +4,8 @@ use opengl_util::texture::Texture2D;
 use opengl_util::vertex::VertexArray;
 use super::{Game, GameStepResult};
 
+mod tileset;
+
 pub struct GameRenderState {
     tileset: Texture2D,
     tileset_vao: VertexArray,
@@ -18,7 +20,7 @@ impl GameRenderState {
         let a_position = shader_program.get_attrib("position");
         let a_texture_uv = shader_program.get_attrib("texture_uv");
 
-        let tileset_data = include_bin!("../../assets/tileset.png");
+        let tileset_data = include_bin!("../../../assets/tileset.png");
         let tileset = match png::load_png32_data_and_upload(tileset_data) {
             Ok(tileset) => tileset,
             Err(e) => panic!("{}", e)
@@ -37,6 +39,7 @@ impl GameRenderState {
         use gl;
         use cgmath::FixedArray;
         use std::num::Float;
+        use self::tileset::TilesetDrawer;
 
         unsafe {
             let (w, h) = step_result.viewport;
@@ -57,6 +60,7 @@ impl GameRenderState {
                 let tile_size = 16.0;
                 let tileset_drawer = TilesetDrawer {
                     screen_size: (game.level.width as f32 * tile_size, game.level.height as f32 * tile_size),
+                    tile_size: tile_size,
                     draw: |&: id, model| {
                         uniform.set_mat4(u_model, model);
                         vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
@@ -304,56 +308,6 @@ impl GameRenderState {
         });
     }
 }
-
-struct TilesetDrawer<'a, F: Fn(u16, &[[f32, ..4], ..4]) + 'a> {
-    screen_size: (f32, f32),
-    draw: F,
-}
-
-impl<'a, F: Fn(u16, &[[f32, ..4], ..4])> TilesetDrawer<'a, F> {
-    pub fn draw_tile(&self, (x, y): (f32, f32), id: u16, flip: (bool, bool), rotate_90: bool) {
-        let (width, height) = self.screen_size;
-
-        self.draw_tile_single(x - width, y - height, id, flip, rotate_90);
-        self.draw_tile_single(x, y - height, id, flip, rotate_90);
-        self.draw_tile_single(x + width, y - height, id, flip, rotate_90);
-        self.draw_tile_single(x - width, y, id, flip, rotate_90);
-        self.draw_tile_single(x, y, id, flip, rotate_90);
-        self.draw_tile_single(x + width, y, id, flip, rotate_90);
-        self.draw_tile_single(x - width, y + height, id, flip, rotate_90);
-        self.draw_tile_single(x, y + height, id, flip, rotate_90);
-        self.draw_tile_single(x + width, y + height, id, flip, rotate_90);
-    }
-
-    fn draw_tile_single(&self, x: f32, y: f32, id: u16, (flip_x, flip_y): (bool, bool), rotate_90: bool) {
-        use cgmath::{Matrix4, FixedArray};
-        use util::matrix::MatrixBuilder;
-
-        let mut model = Matrix4::identity()
-            .translate(x, y, 0.0)
-            .scale(16.0, 16.0, 0.0);
-
-        if flip_x {
-            model = model
-                .translate(1.0, 0.0, 0.0)
-                .scale(-1.0, 1.0, 1.0);
-        }
-        if flip_y {
-            model = model
-                .translate(0.0, 1.0, 0.0)
-                .scale(1.0, -1.0, 1.0);
-        }
-        if rotate_90 {
-            use std::f32::consts::FRAC_PI_2;
-            model = model
-                .translate(1.0, 0.0, 0.0)
-                .rotate_z(FRAC_PI_2);
-        }
-
-        (self.draw)(id, model.as_fixed());
-    }
-}
-
 
 fn load_default_program() -> Program {
     use opengl_util::shader::{Shader};
