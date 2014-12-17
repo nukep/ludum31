@@ -127,15 +127,17 @@ pub struct Tiles {
     height: u8,
     screen: Screen,
     tiles: Vec<Tile>,
+    tile_size: f32
 }
 
 impl Tiles {
-    pub fn new(width: u8, height: u8, tiles: Vec<Tile>) -> Tiles {
+    pub fn new(width: u8, height: u8, tiles: Vec<Tile>, tile_size: f32) -> Tiles {
         Tiles {
             width: width,
             height: height,
-            screen: Screen::new(width as f32 * 16.0, height as f32 * 16.0),
-            tiles: tiles
+            screen: Screen::new(width as f32 * tile_size, height as f32 * tile_size),
+            tiles: tiles,
+            tile_size: tile_size
         }
     }
 
@@ -165,20 +167,20 @@ impl Tiles {
         }
     }
 
-    fn nudge(x: f32, y: f32, left_top: (int, int), right_bottom: (int, int), direction: (Option<bool>, Option<bool>)) -> (f32, f32) {
+    fn nudge(tile_size: f32, x: f32, y: f32, left_top: (int, int), right_bottom: (int, int), direction: (Option<bool>, Option<bool>)) -> (f32, f32) {
         let (left, top) = left_top;
         let (right, bottom) = right_bottom;
         let (nudge_right, nudge_bottom) = direction;
 
         let new_left = match nudge_right {
             None => x,
-            Some(false) => right as f32 * 16.0,
-            Some(true) => left as f32 * 16.0
+            Some(false) => right as f32 * tile_size,
+            Some(true) => left as f32 * tile_size
         };
         let new_top = match nudge_bottom {
             None => y,
-            Some(false) => bottom as f32 * 16.0,
-            Some(true) => top as f32 * 16.0
+            Some(false) => bottom as f32 * tile_size,
+            Some(true) => top as f32 * tile_size
         };
         (new_left, new_top)
     }
@@ -193,7 +195,7 @@ impl Tiles {
         let nudge = tiles.iter().any(|&(t, _, _)| t.tile_type.is_blocking);
 
         if nudge {
-            Some(Tiles::nudge(x, y, left_top, right_bottom, direction))
+            Some(Tiles::nudge(self.tile_size, x, y, left_top, right_bottom, direction))
         } else {
             None
         }
@@ -212,10 +214,10 @@ impl Tiles {
 
         if get_emerge && emerge_hit.len() >= 1 {
             let (x, y) = emerge_hit[0];
-            Some((x as f32 * 16.0, y as f32 * 16.0, true))
+            Some((x as f32 * self.tile_size, y as f32 * self.tile_size, true))
         } else {
             if nudge {
-                let (x, y) = Tiles::nudge(x, y, left_top, right_bottom, direction);
+                let (x, y) = Tiles::nudge(self.tile_size, x, y, left_top, right_bottom, direction);
                 Some((x, y, false))
             } else {
                 None
@@ -230,10 +232,10 @@ impl Tiles {
         let (w, h) = rect.size();
 
         let (left, top) = {
-            (Float::floor(x / 16.0) as int, Float::floor(y / 16.0) as int)
+            (Float::floor(x / self.tile_size) as int, Float::floor(y / self.tile_size) as int)
         };
         let (right, bottom) = {
-            let (mut r, mut b) = (Float::floor((x + w-1.0) / 16.0) as int, Float::floor((y + h-1.0) / 16.0) as int);
+            let (mut r, mut b) = (Float::floor((x + w-1.0) / self.tile_size) as int, Float::floor((y + h-1.0) / self.tile_size) as int);
 
             // Wrapping
             if r >= self.width as int { r -= self.width as int }
@@ -267,11 +269,11 @@ impl Tiles {
     }
 
     pub fn is_dirt_entrance_below(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        self.is_tile_inside(rect.offset(&self.screen, 0.0, 4.0), 0x15)
+        self.is_tile_inside(rect.offset(&self.screen, 0.0, self.tile_size / 4.0), 0x15)
     }
 
     pub fn is_key_entrance_beside(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        if let Some((x, y)) = self.is_tile_inside(rect.offset(&self.screen, -4.0, 0.0), 0x17) {
+        if let Some((x, y)) = self.is_tile_inside(rect.offset(&self.screen, -self.tile_size / 4.0, 0.0), 0x17) {
             Some((x, y))
         } else {
             None
@@ -379,6 +381,7 @@ fn parse_from_json(input: &str) -> Level {
 
 
     let (width, height) = (28, 16);
+    let tile_size: f32 = 16.0;
 
     let json = match FromStr::from_str(input) {
         Some(Json::Object(obj)) => obj,
@@ -461,7 +464,7 @@ fn parse_from_json(input: &str) -> Level {
                     triggered_by: triggered_by,
                     poof: poof,
                     is_static: is_static,
-                    fall_distance: height - 16.0,
+                    fall_distance: height - tile_size,
                     contains: contains
                 });
             },
@@ -472,7 +475,7 @@ fn parse_from_json(input: &str) -> Level {
                 beanstalks.push(Beanstalk {
                     x: x,
                     y: y,
-                    height: (height / 16.0) as uint,
+                    height: (height / tile_size) as uint,
                     triggered_by: triggered_by,
                     poof: poof,
                 });
@@ -499,15 +502,15 @@ fn parse_from_json(input: &str) -> Level {
                 sticky_keys.push(StickyKey {
                     x: x,
                     y: y,
-                    fall_distance: height - 8.0
+                    fall_distance: height - tile_size / 2.0
                 })
             },
             "message" => {
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
 
                 let message_tiles = parse_tiles(properties, "tiles");
-                let w = (width / 16.0) as uint;
-                let h = (height / 16.0) as uint;
+                let w = (width / tile_size) as uint;
+                let h = (height / tile_size) as uint;
 
                 assert_eq!(message_tiles.len(), w*h);
 
@@ -525,10 +528,10 @@ fn parse_from_json(input: &str) -> Level {
 
                 let tile_id = parse_property_as_number(properties, "tile").expect("Reqires 'tile'");
 
-                let tile_x = (x / 16.0) as uint;
-                let tile_y = (y / 16.0) as uint;
-                let w = (width / 16.0) as uint;
-                let h = (height / 16.0) as uint;
+                let tile_x = (x / tile_size) as uint;
+                let tile_y = (y / tile_size) as uint;
+                let w = (width / tile_size) as uint;
+                let h = (height / tile_size) as uint;
 
                 set_tos.push(SetTo {
                     x: tile_x,
@@ -547,7 +550,7 @@ fn parse_from_json(input: &str) -> Level {
         };
     }
 
-    let tiles = Tiles::new(width as u8, height as u8, tiles_vec);
+    let tiles = Tiles::new(width as u8, height as u8, tiles_vec, tile_size);
 
     Level {
         width: width as u8,

@@ -98,8 +98,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
 
                 // Draw messages
                 for message in game.items.messages.iter().filter(|m| m.visible) {
-                    let mut i = 0u;
-                    for tile_id in message.tiles.iter() {
+                    for (i, tile_id) in message.tiles.iter().enumerate() {
                         let offset_x = i % message.width;
                         let offset_y = i / message.width;
 
@@ -107,8 +106,6 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         let y = message.y + offset_y as f32 * tile_size;
 
                         draw_tile_all(x, y, *tile_id, (false, false), false);
-
-                        i += 1;
                     }
                 }
 
@@ -139,7 +136,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         false => 5
                     };
                     let tile = tile_from_phase(&[0x04, 0x05, 0x06, 0x07, 0x08], chest.phase) + tile_offset;
-                    draw_tile_all(Float::floor(chest.x), Float::floor(chest.y)+3.0, tile, (false, false), false);
+                    draw_tile_all(Float::floor(chest.x), Float::floor(chest.y) + tile_size * 3.0/16.0, tile, (false, false), false);
                 }
 
                 // Draw player
