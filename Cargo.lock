@@ -5,8 +5,8 @@ dependencies = [
  "cgmath 0.0.1 (git+https://github.com/bjz/cgmath-rs)",
  "game_platforms 0.0.1",
  "gl 0.0.2 (git+https://github.com/bjz/gl-rs)",
- "lodepng 0.1.0 (git+https://github.com/pornel/lodepng-rust)",
- "sdl2 0.0.9 (git+https://github.com/AngryLawyer/rust-sdl2)",
+ "lodepng 0.1.0 (git+https://github.com/nukep/lodepng-rust)",
+ "sdl2 0.0.10 (git+https://github.com/AngryLawyer/rust-sdl2)",
  "synth 0.0.1",
  "time 0.1.2 (git+https://github.com/rust-lang/time)",
 ]
@@ -20,7 +20,7 @@ source = "git+https://github.com/bjz/cgmath-rs#d9608b57571d3caf56885eaa550675156
 name = "game_platforms"
 version = "0.0.1"
 dependencies = [
- "sdl2 0.0.9 (git+https://github.com/AngryLawyer/rust-sdl2)",
+ "sdl2 0.0.10 (git+https://github.com/AngryLawyer/rust-sdl2)",
  "time 0.1.2 (git+https://github.com/rust-lang/time)",
 ]
 
@@ -60,12 +60,12 @@ source = "git+https://github.com/bjz/gl-rs#a9e95f3dc8b1006256af824fdfecb03302cf9
 [[package]]
 name = "lodepng"
 version = "0.1.0"
-source = "git+https://github.com/pornel/lodepng-rust#4d54d22a2396d46e5912c12da4b403ba748aae75"
+source = "git+https://github.com/nukep/lodepng-rust#d75669f22b6ea2e95172fcd4fe02c2eca38b845f"
 
 [[package]]
 name = "sdl2"
-version = "0.0.9"
-source = "git+https://github.com/AngryLawyer/rust-sdl2#61935c86ce4eea0cadb973d60270eceeabc62da0"
+version = "0.0.10"
+source = "git+https://github.com/AngryLawyer/rust-sdl2#2443bab12097018505dbb303a5fb70e86afa9bab"
 
 [[package]]
 name = "synth"

@@ -28,7 +28,6 @@ The game logic in particular is very ad-hoc.
 ## Todo
 - [ ] Move `rust-game-platforms` to its own repo
 - [ ] Move `synth` to its own repo
-- [x] Use the mainline `lodepng` repo
 - [ ] Decouple player and items logic, minimize inter-communication
 - [ ] Clean up Tiled JSON level loader
 - [ ] Simplify collision
