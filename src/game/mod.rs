@@ -7,7 +7,7 @@ use self::audio::Audio;
 use self::items::DynamicItems;
 use self::level::Level;
 use self::player::Player;
-use self::rect::RectExt;
+use self::rect::Point;
 
 mod audio;
 mod collision;
@@ -46,7 +46,7 @@ impl Game {
         };
         let level = Level::load();
         let items = DynamicItems::new(&level);
-        let player = Player::new(level.player_start_pos);
+        let player = Player::new(Point::new(&level.get_screen(), level.player_start_pos));
         let scroll_x = 0.0;
 
         Game {
@@ -79,6 +79,8 @@ impl GameStepper<Input, GameStepResult> for Game {
             return Exit;
         }
 
+        let screen = self.level.get_screen();
+
         let lock_scrolling = input.is_keycode_down(KeyCode::LCtrl) | input.is_keycode_down(KeyCode::RCtrl) | input.is_keycode_down(KeyCode::ScrollLock) | !self.player.is_alive();
         let fire = input.is_keycode_newly_down(KeyCode::Space) | input.is_mouse_button_newly_down(sdl2::mouse::LEFTMOUSESTATE);
         let up = input.is_keycode_down(KeyCode::Up) | input.is_keycode_down(KeyCode::W);
@@ -93,31 +95,29 @@ impl GameStepper<Input, GameStepResult> for Game {
         let last_player_is_jumping = self.player.is_jumping();
 
         if up {
-            use self::rect::RectExt;
-
             let player_rect = self.player.get_rect();
-            let beanstalk = self.items.beanstalk_exists(player_rect);
+            let beanstalk = self.items.beanstalk_exists(&player_rect);
 
             match beanstalk {
                 Some(rect) => {
-                    self.player.try_climb_beanstalk(rect.x(), player_rect.y(), rect.y(), rect.height());
+                    self.player.try_climb_beanstalk(&screen, &rect);
                 },
                 None => ()
             }
         }
 
-        let died = if self.player.is_alive() && self.items.rect_hits_monsters(self.player.get_rect()) {
-            self.items.add_poof(last_player_pos.0, last_player_pos.1);
+        let died = if self.player.is_alive() && self.items.rect_hits_monsters(&self.player.get_rect()) {
+            self.items.add_poof(last_player_pos);
             true
         } else {
             false
         };
 
         if died {
-            self.player.die(self.level.player_start_pos);
+            self.player.die(Point::new(&screen, self.level.player_start_pos));
         }
 
-        self.player.tick(&self.level.get_screen(), self.level.get_tiles(), up, down, left, right);
+        self.player.tick(&screen, self.level.get_tiles(), up, down, left, right);
         let cur_player_pos = self.player.get_pos();
         let cur_player_is_walking = self.player.is_walking();
         let cur_player_is_drilling = self.player.is_drilling();
@@ -127,8 +127,7 @@ impl GameStepper<Input, GameStepResult> for Game {
         let mut got_useless_points = false;
 
         let got_item = if new_down {
-            let items = self.items.try_open_chest(cur_player_rect);
-            let (px, py) = cur_player_pos;
+            let items = self.items.try_open_chest(&cur_player_rect);
 
             for item in items.iter() {
                 use self::items::ChestItem;
@@ -141,13 +140,13 @@ impl GameStepper<Input, GameStepResult> for Game {
                         self.player.add_gun();
                     },
                     &(x, y, ChestItem::UselessPoints) => {
-                        self.items.add_useless_points(x, y);
+                        self.items.add_useless_points(Point::new(&screen, (x, y)));
                         got_useless_points = true;
                     },
                     &(_, _, ChestItem::None) => ()
                 }
 
-                self.items.add_poof(px+5.0, py+5.0);
+                self.items.add_poof(cur_player_pos.offset(&screen, 5.0, 5.0));
             }
 
             items.len() > 0
@@ -155,7 +154,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        let used_key = if let Some((x, y)) = self.level.get_tiles().is_key_entrance_beside(cur_player_rect) {
+        let used_key = if let Some((x, y)) = self.level.get_tiles().is_key_entrance_beside(&cur_player_rect) {
             if self.player.try_use_key() {
                 self.level.get_tiles_mut().remove_key_entrance(x, y);
                 true
@@ -166,7 +165,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             false
         };
 
-        let got_key = match self.items.try_take_keys(cur_player_rect) {
+        let got_key = match self.items.try_take_keys(&cur_player_rect) {
             0 => false,
             amount => {
                 self.player.add_keys(amount);
@@ -175,7 +174,7 @@ impl GameStepper<Input, GameStepResult> for Game {
         };
 
         let just_exited = if new_down {
-            if let Some((_x, _y)) = self.level.get_tiles().is_tile_inside(cur_player_rect, 0x2B) {
+            if let Some((_x, _y)) = self.level.get_tiles().is_tile_inside(&cur_player_rect, 0x2B) {
                 true
             } else {
                 false
@@ -185,9 +184,8 @@ impl GameStepper<Input, GameStepResult> for Game {
         };
 
         let new_coins = {
-            let screen = self.level.get_screen();
             let rect = cur_player_rect.set_width(4.0).offset(&screen, 6.0, 0.0);
-            self.level.get_tiles_mut().take_coins(rect)
+            self.level.get_tiles_mut().take_coins(&rect)
         };
 
         if just_exited {
@@ -196,7 +194,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             self.level.trigger_set_to(255);
         }
 
-        self.items.step(&self.level.get_screen());
+        self.items.step(&screen);
         self.items.bullet_item_collision(self.level.get_tiles());
 
         let gun_fired = if fire {
@@ -204,13 +202,11 @@ impl GameStepper<Input, GameStepResult> for Game {
                 if let Some(_) = self.player.gun {
                     use self::player::PlayerStandDirection::{Left, Right};
 
-                    let (px, py) = cur_player_pos;
                     let (bullet_coord, vel_x) = match s.direction {
-                        Left => ((px-4.0, py+12.0), -8.0),
-                        Right => ((px+20.0, py+12.0), 8.0)
+                        Left => (cur_player_pos.offset(&screen, -4.0, 12.0), -8.0),
+                        Right => (cur_player_pos.offset(&screen, 20.0, 12.0), 8.0)
                     };
-                    let new_coord = self.level.get_screen().wrap_coord(bullet_coord);
-                    self.items.add_bullet(new_coord.0, new_coord.1, vel_x);
+                    self.items.add_bullet(bullet_coord, vel_x);
                     true
                 } else {
                     false
@@ -224,9 +220,7 @@ impl GameStepper<Input, GameStepResult> for Game {
 
         {
             let switch_triggers: Vec<u8> = {
-                let switches = match cur_player_pos {
-                    (x, y) => self.items.switch_hit_test(x, y, 16.0, 16.0)
-                };
+                let switches = self.items.switch_hit_test(&cur_player_rect);
 
                 switches.iter().map(|switch| {
                     switch.trigger
@@ -240,7 +234,7 @@ impl GameStepper<Input, GameStepResult> for Game {
             }
 
             let (_moved, destroyed) = if !lock_scrolling {
-                let (rel_x, rel_y) = self.level.get_screen().relative_wrap(last_player_pos, cur_player_pos);
+                let (rel_x, rel_y) = screen.relative_wrap(last_player_pos.floor(&screen, 1.0).xy(), cur_player_pos.floor(&screen, 1.0).xy());
 
                 match (rel_x, rel_y) {
                     (0.0, 0.0) => (false, false),
@@ -250,7 +244,7 @@ impl GameStepper<Input, GameStepResult> for Game {
                         } else {
                             self.scroll(sx, 0.0);
                         }
-                        self.items.adjust_to_scroll_boundary(&self.level.get_screen(), self.level.get_tiles(), self.scroll_x, rel_x > 0.0, rel_x < 0.0)
+                        self.items.adjust_to_scroll_boundary(&screen, self.level.get_tiles(), self.scroll_x, rel_x > 0.0, rel_x < 0.0)
                     }
                 }
             } else {

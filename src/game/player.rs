@@ -1,6 +1,6 @@
 use super::level::Tiles;
 use super::wrapping::Screen;
-use super::rect::RectExt;
+use super::rect::{Point, Rect};
 
 fn into_direction(up: bool, down: bool, left: bool, right: bool) -> (Option<bool>, Option<bool>){
     let direction_down = match (up, down) {
@@ -51,8 +51,7 @@ pub enum PlayerDiggingDirection {
 
 pub struct PlayerStateStand {
     pub direction: PlayerStandDirection,
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub running_cycle: Option<f32>,
     vel_x: f32,
     vel_y: f32,
@@ -113,73 +112,58 @@ impl PlayerStateStand {
     }
 
     fn go(&mut self, screen: &Screen, tiles: &Tiles, x_delta: f32, y_delta: f32) -> bool {
-        let new_coord = screen.wrap_coord((self.x + x_delta, self.y + y_delta));
-        self.x = new_coord.0;
-        self.y = new_coord.1;
+        self.xy = self.xy.offset(screen, x_delta, y_delta);
 
         let direction = into_direction(y_delta < 0.0, y_delta > 0.0, x_delta < 0.0, x_delta > 0.0);
 
-        match tiles.collision_tile(self.get_rect(), direction) {
+        match tiles.collision_tile(&self.get_rect(), direction) {
             Some((x, y)) => {
-                self.x = x;
-                self.y = y;
+                self.xy = Point::new(screen, (x, y));
                 true
             },
             None => false
         }
     }
 
-    fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 pub struct PlayerStateDigging {
     pub direction: PlayerDiggingDirection,
-    pub x: f32,
-    pub y: f32
+    pub xy: Point<f32>
 }
 
 impl PlayerStateDigging {
     fn dig(&mut self, screen: &Screen, tiles: &Tiles, up: bool, down: bool, left: bool, right: bool) -> Option<PlayerState> {
         let speed = 2.0;
-        let (x, y, direction) = if up {
+        let (xy, direction) = if up {
             self.direction = PlayerDiggingDirection::Up;
-            (self.x, self.y - speed, Some(into_direction(true, false, false, false)))
+            (self.xy.offset(screen, 0.0, -speed), Some(into_direction(true, false, false, false)))
         } else if down {
             self.direction = PlayerDiggingDirection::Down;
-            (self.x, self.y + speed, Some(into_direction(false, true, false, false)))
+            (self.xy.offset(screen, 0.0, speed), Some(into_direction(false, true, false, false)))
         } else if left {
             self.direction = PlayerDiggingDirection::Left;
-            (self.x - speed, self.y, Some(into_direction(false, false, true, false)))
+            (self.xy.offset(screen, -speed, 0.0), Some(into_direction(false, false, true, false)))
         } else if right {
             self.direction = PlayerDiggingDirection::Right;
-            (self.x + speed, self.y, Some(into_direction(false, false, false, true)))
+            (self.xy.offset(screen, speed, 0.0), Some(into_direction(false, false, false, true)))
         } else {
-            (self.x, self.y, None)
+            (self.xy, None)
         };
 
-        let (nx, ny) = screen.wrap_coord((x, y));
-        self.x = nx;
-        self.y = ny;
+        self.xy = xy;
 
         match direction {
             Some(direction) => {
-                match tiles.collision_tile_digging(self.get_rect(), direction, up) {
+                match tiles.collision_tile_digging(&self.get_rect(), direction, up) {
                     Some((x, y, emerge_hit)) => {
                         if emerge_hit {
-                            Some(PlayerState::Emerging(PlayerStateEmerging {
-                                from_x: nx,
-                                from_y: ny,
-                                to_x: x - 16.0,
-                                to_y: y - 16.0,
-                                x: nx,
-                                y: ny,
-                                phase: 0.0
-                            }))
+                            Some(PlayerState::Emerging(PlayerStateEmerging::new(xy, x - 16.0, y - 16.0)))
                         } else {
-                            self.x = x;
-                            self.y = y;
+                            self.xy = Point::new(screen, (x, y));
                             None
                         }
                     },
@@ -190,18 +174,16 @@ impl PlayerStateDigging {
         }
     }
 
-    fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 /// When the player comes out of the dirt
 /// Digging -> Emerging -> Stand
 pub struct PlayerStateEmerging {
-    pub x: f32,
-    pub y: f32,
-    pub from_x: f32,
-    pub from_y: f32,
+    pub xy: Point<f32>,
+    pub from_xy: Point<f32>,
     pub to_x: f32,
     pub to_y: f32,
 
@@ -209,12 +191,10 @@ pub struct PlayerStateEmerging {
 }
 
 impl PlayerStateEmerging {
-    pub fn new(from_x: f32, from_y: f32, to_x: f32, to_y: f32) -> PlayerStateEmerging {
+    pub fn new(from_xy: Point<f32>, to_x: f32, to_y: f32) -> PlayerStateEmerging {
         PlayerStateEmerging {
-            x: from_x,
-            y: from_y,
-            from_x: from_x,
-            from_y: from_y,
+            xy: from_xy,
+            from_xy: from_xy,
             to_x: to_x,
             to_y: to_y,
             phase: 0.0
@@ -224,7 +204,7 @@ impl PlayerStateEmerging {
     pub fn tick(&mut self, screen: &Screen) -> Option<PlayerState> {
         self.phase += 0.04;
         if self.phase >= 1.0 {
-            let direction = if self.to_x < self.from_x {
+            let direction = if self.to_x < self.from_xy.x() {
                 PlayerStandDirection::Left
             } else {
                 PlayerStandDirection::Right
@@ -232,8 +212,7 @@ impl PlayerStateEmerging {
 
             Some(PlayerState::Stand(PlayerStateStand {
                 direction: direction,
-                x: self.to_x,
-                y: self.to_y,
+                xy: Point::new(screen, (self.to_x, self.to_y)),
                 vel_x: 0.0,
                 vel_y: 0.0,
                 running_cycle: None
@@ -247,18 +226,18 @@ impl PlayerStateEmerging {
             let y_phase = FloatMath::sin(self.phase * coeff) / FloatMath::sin(coeff);
             let x_phase = self.phase.powf(3.0);
 
-            let new_coord = screen.wrap_coord((lerp(self.from_x, self.to_x, x_phase), lerp(self.from_y, self.to_y, y_phase)));
-            self.x = new_coord.0;
-            self.y = new_coord.1;
-            
+            let (fx, fy) = self.from_xy.xy();
+
+            let new_coord = (lerp(fx, self.to_x, x_phase), lerp(fy, self.to_y, y_phase));
+            self.xy = Point::new(screen, new_coord);
+
             None
         }
     }
 }
 
 pub struct PlayerStateClimbing {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub phase: f32,
 
     beanstalk_y: f32,
@@ -266,33 +245,36 @@ pub struct PlayerStateClimbing {
 }
 
 impl PlayerStateClimbing {
-    fn climb_up(&mut self) {
-        let y = self.y - 2.0;
+    fn climb_up(&mut self, screen: &Screen) {
+        let y = self.xy.y() - 2.0;
         self.phase = (self.phase + 0.1) % 1.0;
 
-        self.y = if y < self.beanstalk_y { self.beanstalk_y }
+        let ny = if y < self.beanstalk_y { self.beanstalk_y }
         else { y };
+
+        self.xy = self.xy.set_y(screen, ny);
     }
 
-    fn climb_down(&mut self) {
-        let y = self.y + 2.0;
+    fn climb_down(&mut self, screen: &Screen) {
+        let y = self.xy.y() + 2.0;
         self.phase = (self.phase + 0.1) % 1.0;
 
-        self.y = if y > self.beanstalk_y_max { self.beanstalk_y_max }
+        let ny = if y > self.beanstalk_y_max { self.beanstalk_y_max }
         else { y };
+
+        self.xy = self.xy.set_y(screen, ny);
     }
 
-    fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 pub struct PlayerStateDying {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub phase: f32,
 
-    regen_coord: (f32, f32)
+    regen_coord: Point<f32>
 }
 
 pub enum PlayerState {
@@ -311,7 +293,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(pos: (f32, f32)) -> Player {
+    pub fn new(pos: Point<f32>) -> Player {
         Player {
             state: Player::get_initial_state(pos),
             drill: None,
@@ -320,12 +302,10 @@ impl Player {
         }
     }
 
-    fn get_initial_state(pos: (f32, f32)) -> PlayerState {
-        let (x, y) = pos;
+    fn get_initial_state(xy: Point<f32>) -> PlayerState {
         PlayerState::Stand(PlayerStateStand {
             direction: PlayerStandDirection::Left,
-            x: x,
-            y: y,
+            xy: xy,
             vel_x: 0.0,
             vel_y: 0.0,
             running_cycle: None
@@ -341,13 +321,12 @@ impl Player {
                 let has_drill = if let Some(_) = self.drill { true } else { false };
 
                 if has_drill && down {
-                    match tiles.is_dirt_entrance_below(s.get_rect()) {
+                    match tiles.is_dirt_entrance_below(&s.get_rect()) {
                         Some((x, y)) => {
                             // Dig it up!
                             Some(PlayerState::Digging(PlayerStateDigging {
                                 direction: PlayerDiggingDirection::Down,
-                                x: x as f32 * 16.0,
-                                y: y as f32 * 16.0
+                                xy: Point::new(screen, (x as f32 * 16.0, y as f32 * 16.0))
                             }))
                         },
                         None => None
@@ -364,26 +343,26 @@ impl Player {
             },
             PlayerState::Climbing(ref mut s) => {
                 if up {
-                    s.climb_up();
+                    s.climb_up(screen);
                     None
                 } else if down {
-                    s.climb_down();
+                    s.climb_down(screen);
                     None
                 } else if left {
                     // Try to jump off
                     let rect = s.get_rect().offset(screen, -16.0, 0.0);
-                    match tiles.has_non_blocking_tile(rect) {
+                    match tiles.has_non_blocking_tile(&rect) {
                         Some((x, y)) => {
-                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
+                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.xy, x as f32 * 16.0, y as f32 * 16.0)))
                         },
                         None => None
                     }
                 } else if right {
                     // Try to jump off
                     let rect = s.get_rect().offset(screen, 16.0, 0.0);
-                    match tiles.has_non_blocking_tile(rect) {
+                    match tiles.has_non_blocking_tile(&rect) {
                         Some((x, y)) => {
-                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.x, s.y, x as f32 * 16.0, y as f32 * 16.0)))
+                            Some(PlayerState::Emerging(PlayerStateEmerging::new(s.xy, x as f32 * 16.0, y as f32 * 16.0)))
                         },
                         None => None
                     }
@@ -416,31 +395,20 @@ impl Player {
         }
     }
 
-    pub fn get_pos(&self) -> (f32, f32) {
+    pub fn get_pos(&self) -> Point<f32> {
         use std::num::Float;
 
         match self.state {
-            PlayerState::Stand(ref s) => {
-                (Float::floor(s.x), Float::floor(s.y))
-            },
-            PlayerState::Digging(ref s) => {
-                (Float::floor(s.x), Float::floor(s.y))
-            },
-            PlayerState::Emerging(ref s) => {
-                (Float::floor(s.x), Float::floor(s.y))
-            },
-            PlayerState::Climbing(ref s) => {
-                (Float::floor(s.x), Float::floor(s.y))
-            },
-            PlayerState::Dying(ref s) => {
-                (Float::floor(s.x), Float::floor(s.y))
-            }
+            PlayerState::Stand(ref s) => s.xy,
+            PlayerState::Digging(ref s) => s.xy,
+            PlayerState::Emerging(ref s) => s.xy,
+            PlayerState::Climbing(ref s) => s.xy,
+            PlayerState::Dying(ref s) => s.xy
         }
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        let (x, y) = self.get_pos();
-        (x, y, x + 16.0, y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.get_pos(), (16.0, 16.0))
     }
 
     pub fn is_walking(&self) -> bool {
@@ -482,14 +450,13 @@ impl Player {
         self.gun = Some(PlayerItemGun);
     }
 
-    pub fn try_climb_beanstalk(&mut self, x: f32, y: f32, beanstalk_y: f32, beanstalk_height: f32) {
+    pub fn try_climb_beanstalk(&mut self, screen: &Screen, beanstalk: &Rect<f32>) {
         let next_state: Option<PlayerState> = match self.state {
             PlayerState::Stand(ref _s) => {
                 Some(PlayerState::Climbing(PlayerStateClimbing {
-                    x: x,
-                    y: y,
-                    beanstalk_y: beanstalk_y,
-                    beanstalk_y_max: beanstalk_y + beanstalk_height - 16.0,
+                    xy: self.get_pos().set_x(screen, beanstalk.x()),
+                    beanstalk_y: beanstalk.y(),
+                    beanstalk_y_max: beanstalk.y() + beanstalk.height() - 16.0,
                     phase: 0.0
                 }))
             },
@@ -502,11 +469,9 @@ impl Player {
         }
     }
 
-    pub fn die(&mut self, regen_coord: (f32, f32)) {
-        let (px, py) = self.get_pos();
+    pub fn die(&mut self, regen_coord: Point<f32>) {
         self.state = PlayerState::Dying(PlayerStateDying {
-            x: px,
-            y: py,
+            xy: self.get_pos(),
             regen_coord: regen_coord,
             phase: 0.0
         });

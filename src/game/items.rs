@@ -1,48 +1,44 @@
 use super::level::{Level, Tiles};
 use super::wrapping::Screen;
 use super::collision;
-use super::rect::RectExt;
+use super::rect::{Point, Rect};
 
 pub struct Poof {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub phase: f32
 }
 
 #[deriving(Clone, Copy)]
 pub struct Bullet {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub vel_x: f32,
     pub phase: f32,
     timeout: uint
 }
 
 impl Bullet {
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 1.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 1.0))
     }
 }
 
 pub struct Useless {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub phase: f32
 }
 
 pub struct Switch {
     pub trigger: u8,
     pub triggered_by: Option<u8>,
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub is_down: bool,
     pub visible: bool,
     release_timeout: u8
 }
 
 impl Switch {
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
@@ -50,14 +46,12 @@ pub struct Chest {
     pub triggered_by: Option<u8>,
     pub trigger: Option<u8>,
     pub explode_trigger: Option<u8>,
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub visible: bool,
     pub phase: f32,
     pub is_static: bool,
     opened: bool,
-    original_x: f32,
-    original_y: f32,
+    original_xy: Point<f32>,
     fall_distance: f32,
     fall_phase: f32,
     contains: ChestItem
@@ -65,14 +59,13 @@ pub struct Chest {
 
 impl Chest {
     pub fn spawn(&mut self) {
-        self.x = self.original_x;
-        self.y = self.original_y;
+        self.xy = self.original_xy;
         self.visible = true;
         self.fall_phase = 0.0;
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
@@ -85,8 +78,7 @@ pub enum ChestItem {
 }
 
 pub struct Monster1 {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub visible: bool,
     pub phase: f32,
     triggered_by: Option<u8>,
@@ -97,16 +89,14 @@ impl Monster1 {
         self.visible = true;
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 pub struct Monster2 {
-    pub original_x: f32,
-    pub original_y: f32,
-    pub x: f32,
-    pub y: f32,
+    pub original_xy: Point<f32>,
+    pub xy: Point<f32>,
     pub visible: bool,
     pub phase: f32,
     move_phase: f32,
@@ -116,18 +106,16 @@ pub struct Monster2 {
 impl Monster2 {
     pub fn spawn(&mut self) {
         self.visible = true;
-        self.x = self.original_x;
-        self.y = self.original_y;
+        self.xy = self.original_xy;
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 pub struct Beanstalk {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub height: uint,
     pub visible: bool,
     triggered_by: Option<u8>,
@@ -138,14 +126,13 @@ impl Beanstalk {
         self.visible = true;
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + self.height as f32 * 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, self.height as f32 * 16.0))
     }
 }
 
 pub struct Key {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub is_sticky: bool,
     pub visible: bool,
     vel_y: f32,
@@ -157,9 +144,9 @@ impl Key {
         !self.is_sticky && self.visible
     }
 
-    pub fn step(&mut self) {
-        let y = self.y + self.vel_y;
-        self.y = if y > self.to_y { self.to_y } else { y };
+    pub fn step(&mut self, screen: &Screen) {
+        let p = self.xy.offset(screen, 0.0, self.vel_y);
+        self.xy = if p.xy().1 > self.to_y { p.set_y(screen, self.to_y) } else { p };
 
         self.vel_y += 0.1;
     }
@@ -168,14 +155,13 @@ impl Key {
         self.is_sticky = false;
     }
 
-    pub fn get_rect(&self) -> (f32, f32, f32, f32) {
-        (self.x, self.y, self.x + 16.0, self.y + 16.0)
+    pub fn get_rect(&self) -> Rect<f32> {
+        Rect::new(self.xy, (16.0, 16.0))
     }
 }
 
 pub struct Message {
-    pub x: f32,
-    pub y: f32,
+    pub xy: Point<f32>,
     pub width: uint,
     pub height: uint,
     pub tiles: Vec<u16>,
@@ -194,17 +180,20 @@ pub struct DynamicItems {
     pub beanstalks: Vec<Beanstalk>,
     pub keys: Vec<Key>,
     pub messages: Vec<Message>,
+
+    screen: Screen
 }
 
 impl DynamicItems {
     pub fn new(level: &Level) -> DynamicItems {
+        let screen = level.get_screen();
+
         let switches = level.switches.iter().map(|s| {
             Switch {
                 trigger: s.trigger,
                 triggered_by: s.triggered_by,
                 visible: match s.triggered_by { Some(_) => false, None => true },
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 is_down: false,
                 release_timeout: 0
             }
@@ -215,13 +204,11 @@ impl DynamicItems {
                 triggered_by: s.triggered_by,
                 trigger: s.trigger,
                 explode_trigger: s.explode_trigger,
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 visible: match s.triggered_by { Some(_) => false, None => true },
                 phase: 0.0,
                 is_static: s.is_static,
-                original_x: s.x,
-                original_y: s.y,
+                original_xy: Point::new(&screen, (s.x, s.y)),
                 fall_distance: s.fall_distance,
                 fall_phase: 0.0,
                 opened: false,
@@ -237,8 +224,7 @@ impl DynamicItems {
 
         let monsters1 = level.monsters1.iter().map(|s| {
             Monster1 {
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 visible: false,
                 triggered_by: s.triggered_by,
                 phase: 0.0
@@ -247,10 +233,8 @@ impl DynamicItems {
 
         let monsters2 = level.monsters2.iter().map(|s| {
             Monster2 {
-                original_x: s.x,
-                original_y: s.y,
-                x: s.x,
-                y: s.y,
+                original_xy: Point::new(&screen, (s.x, s.y)),
+                xy: Point::new(&screen, (s.x, s.y)),
                 visible: false,
                 triggered_by: s.triggered_by,
                 phase: 0.0,
@@ -260,8 +244,7 @@ impl DynamicItems {
 
         let beanstalks = level.beanstalks.iter().map(|s| {
             Beanstalk {
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 height: s.height,
                 visible: false,
                 triggered_by: s.triggered_by
@@ -270,8 +253,7 @@ impl DynamicItems {
 
         let keys = level.sticky_keys.iter().map(|s| {
             Key {
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 is_sticky: true,
                 visible: true,
                 vel_y: 0.0,
@@ -281,8 +263,7 @@ impl DynamicItems {
 
         let messages = level.messages.iter().map(|s| {
             Message {
-                x: s.x,
-                y: s.y,
+                xy: Point::new(&screen, (s.x, s.y)),
                 width: s.width,
                 height: s.height,
                 tiles: s.tiles.clone(),
@@ -302,6 +283,7 @@ impl DynamicItems {
             beanstalks: beanstalks,
             keys: keys,
             messages: messages,
+            screen: screen
         }
     }
 
@@ -313,36 +295,36 @@ impl DynamicItems {
             switch.release_timeout = 60;
         }
 
-        let mut poof_list: Vec<(f32, f32)> = Vec::new();
+        let mut poof_list: Vec<Point<f32>> = Vec::new();
 
         for switch in self.switches.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
             switch.visible = true;
-            poof_list.push((switch.x, switch.y));
+            poof_list.push(switch.xy);
             did_something = true;
         }
 
         for chest in self.chests.iter_mut().filter(|c| c.triggered_by == Some(id) && !c.visible) {
             chest.spawn();
-            poof_list.push((chest.x, chest.y));
+            poof_list.push(chest.xy);
             did_something = true;
         }
 
         for monster1 in self.monsters1.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
             monster1.spawn();
-            poof_list.push((monster1.x, monster1.y));
+            poof_list.push(monster1.xy);
             did_something = true;
         }
 
         for monster2 in self.monsters2.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
             monster2.spawn();
-            poof_list.push((monster2.x, monster2.y));
+            poof_list.push(monster2.xy);
             did_something = true;
         }
 
         for beanstalk in self.beanstalks.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
             beanstalk.spawn();
             for y in range(0u, beanstalk.height) {
-                poof_list.push((beanstalk.x, beanstalk.y + y as f32 * 16.0));
+                poof_list.push(beanstalk.xy.offset(&self.screen, 0.0, y as f32 * 16.0));
             }
             did_something = true;
         }
@@ -352,33 +334,35 @@ impl DynamicItems {
             did_something = true;
         }
 
+        let screen = self.screen;
+
         for poof in poof_list.iter() {
-            let &(x, y) = poof;
-            self.add_poof(x-5.0, y-5.0);
-            self.add_poof(x+5.0, y+5.0);
-            self.add_poof(x+12.0, y-3.0);
+            let (x, y) = poof.xy();
+            self.add_poof(poof.offset(&screen, -5.0, -5.0));
+            self.add_poof(poof.offset(&screen, 5.0, 5.0));
+            self.add_poof(poof.offset(&screen, 12.0, -3.0));
         }
 
         did_something
     }
 
-    pub fn switch_hit_test(&self, x: f32, y: f32, w: f32, h: f32) -> Vec<&Switch> {
+    pub fn switch_hit_test(&self, rect: &Rect<f32>) -> Vec<&Switch> {
         // Switches love triggers
 
         self.switches.iter().filter(|s| s.visible).filter_map(|switch| {
-            let hit = collision::test_rects((x, y, x+w, y+h), switch.get_rect());
+            let hit = collision::test_rects(rect, &switch.get_rect());
 
             if hit { Some(switch) }
             else { None }
         }).collect()
     }
 
-    pub fn try_open_chest(&mut self, rect: (f32, f32, f32, f32)) -> Vec<(f32, f32, ChestItem)> {
+    pub fn try_open_chest(&mut self, rect: &Rect<f32>) -> Vec<(f32, f32, ChestItem)> {
         let mut opened_chest = false;
         let mut triggers: Vec<u8> = Vec::new();
 
         let items = self.chests.iter_mut().filter(|c| c.visible && !c.opened).filter_map(|chest| {
-            let hit = collision::test_rects(rect, chest.get_rect());
+            let hit = collision::test_rects(rect, &chest.get_rect());
             if hit {
                 opened_chest = true;
                 chest.opened = true;
@@ -386,7 +370,8 @@ impl DynamicItems {
                     Some(trigger) => triggers.push(trigger),
                     None => ()
                 };
-                Some((chest.x, chest.y, chest.contains))
+                let (x, y) = chest.xy.xy();
+                Some((x, y, chest.contains))
             }
             else { None }
         }).collect();
@@ -398,10 +383,10 @@ impl DynamicItems {
         items
     }
 
-    pub fn try_take_keys(&mut self, rect: (f32, f32, f32, f32)) -> uint {
+    pub fn try_take_keys(&mut self, rect: &Rect<f32>) -> uint {
         let mut count = 0u;
         for key in self.keys.iter_mut().filter(|k| k.is_free()) {
-            if collision::test_rects(rect, key.get_rect()) {
+            if collision::test_rects(rect, &key.get_rect()) {
                 key.visible = false;
                 count += 1;
             }
@@ -409,37 +394,34 @@ impl DynamicItems {
         count
     }
 
-    pub fn beanstalk_exists(&mut self, rect: (f32, f32, f32, f32)) -> Option<(f32, f32, f32, f32)> {
+    pub fn beanstalk_exists(&mut self, rect: &Rect<f32>) -> Option<Rect<f32>> {
         for beanstalk in self.beanstalks.iter().filter(|b| b.visible) {
-            if collision::test_rects(rect, beanstalk.get_rect()) {
+            if collision::test_rects(rect, &beanstalk.get_rect()) {
                 return Some(beanstalk.get_rect());
             }
         }
         None
     }
 
-    pub fn add_poof(&mut self, x: f32, y: f32) {
+    pub fn add_poof(&mut self, xy: Point<f32>) {
         self.poofs.push(Poof {
-            x: x,
-            y: y,
+            xy: xy,
             phase: 0.0
         });
     }
 
-    pub fn add_bullet(&mut self, x: f32, y: f32, vel_x: f32) {
+    pub fn add_bullet(&mut self, xy: Point<f32>, vel_x: f32) {
         self.bullets.push(Bullet {
-            x: x,
-            y: y,
+            xy: xy,
             vel_x: vel_x,
             phase: 0.0,
             timeout: 40
         });
     }
 
-    pub fn add_useless_points(&mut self, x: f32, y: f32) {
+    pub fn add_useless_points(&mut self, xy: Point<f32>) {
         self.useless.push(Useless {
-            x: x,
-            y: y,
+            xy: xy,
             phase: 0.0
         });
     }
@@ -451,8 +433,7 @@ impl DynamicItems {
                 None
             } else {
                 Some(Poof {
-                    x: poof.x,
-                    y: poof.y,
+                    xy: poof.xy,
                     phase: phase
                 })
             }
@@ -466,15 +447,13 @@ impl DynamicItems {
             let mut phase = bullet.phase + 0.3;
             if phase >= 1.0 { phase = 1.0; }
 
-            let new_coord = screen.wrap_coord((bullet.x + bullet.vel_x, bullet.y));
-            let x = new_coord.0;
+            let new_xy = bullet.xy.offset(screen, bullet.vel_x, 0.0);
 
             if bullet.timeout - 1 == 0 {
                 None
             } else {
                 Some(Bullet {
-                    x: x,
-                    y: bullet.y,
+                    xy: new_xy,
                     vel_x: bullet.vel_x,
                     phase: phase,
                     timeout: bullet.timeout - 1
@@ -492,8 +471,7 @@ impl DynamicItems {
                 None
             } else {
                 Some(Useless {
-                    x: useless.x,
-                    y: useless.y - 0.5,
+                    xy: useless.xy.offset(&self.screen, 0.0, -0.5),
                     phase: phase
                 })
             }
@@ -505,9 +483,10 @@ impl DynamicItems {
     pub fn bullet_item_collision(&mut self, tiles: &Tiles) {
         // Annihilate both the bullet and the item on collision
 
-        let mut poof_list: Vec<(f32, f32)> = Vec::new();
+        let mut poof_list: Vec<Point<f32>> = Vec::new();
 
         {
+        let screen = self.screen;
         let monsters1 = &mut self.monsters1;
         let monsters2 = &mut self.monsters2;
         let chests = &mut self.chests;
@@ -518,38 +497,38 @@ impl DynamicItems {
             let mut bullet_alive = true;
 
             for monster1 in monsters1.iter_mut().filter(|m| m.visible) {
-                if collision::test_rects(rect, monster1.get_rect()) {
-                    poof_list.push((monster1.x, monster1.y));
+                if collision::test_rects(&rect, &monster1.get_rect()) {
+                    poof_list.push(monster1.xy);
                     monster1.visible = false;
                     bullet_alive = false;
                 }
             }
 
             for monster2 in monsters2.iter_mut().filter(|m| m.visible) {
-                if collision::test_rects(rect, monster2.get_rect()) {
-                    poof_list.push((monster2.x, monster2.y));
+                if collision::test_rects(&rect, &monster2.get_rect()) {
+                    poof_list.push(monster2.xy);
                     monster2.visible = false;
                     bullet_alive = false;
                 }
             }
 
             for chest in chests.iter_mut().filter(|c| c.visible) {
-                if collision::test_rects(rect, chest.get_rect()) {
-                    poof_list.push((chest.x, chest.y));
+                if collision::test_rects(&rect, &chest.get_rect()) {
+                    poof_list.push(chest.xy);
                     chest.visible = false;
                     bullet_alive = false;
                 }
             }
 
             for key in keys.iter_mut().filter(|k| k.is_sticky) {
-                if collision::test_rects(rect, key.get_rect()) {
+                if collision::test_rects(&rect, &key.get_rect()) {
                     key.unstick();
                     bullet_alive = false;
                 }
             }
 
-            if let Some(_) = tiles.collision_tile(rect, (None, None)) {
-                poof_list.push((bullet.x - 8.0, bullet.y - 8.0));
+            if let Some(_) = tiles.collision_tile(&rect, (None, None)) {
+                poof_list.push(bullet.xy.offset(&screen, -8.0, -8.0));
                 bullet_alive = false;
             }
 
@@ -561,8 +540,7 @@ impl DynamicItems {
         }
 
         for poof in poof_list.iter() {
-            let &(x, y) = poof;
-            self.add_poof(x, y);
+            self.add_poof(*poof);
         }
     }
 
@@ -571,22 +549,22 @@ impl DynamicItems {
     pub fn adjust_to_scroll_boundary(&mut self, screen: &Screen, tiles: &Tiles, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
         let width = screen.width;
 
-        let do_collision = |rect: (f32, f32, f32, f32)| -> ((f32, f32, f32, f32), bool, bool) {
+        let do_collision = |rect: &Rect<f32>| -> (Rect<f32>, bool, bool) {
             let mut moved = false;
 
             let new_rect = if x_inc {
                 if collision::test_rect_vert_line(rect, x_line, width) {
                     moved = true;
                     rect.set_x(screen, x_line)
-                } else { rect }
+                } else { *rect }
             } else if x_dec {
                 if collision::test_rect_vert_line(rect, x_line, width) {
                     moved = true;
                     rect.set_x(screen, (x_line - rect.width() + width) % width)
-                } else { rect}
-            } else { rect };
+                } else { *rect}
+            } else { *rect };
 
-            let destroy = if let Some((_, _)) = tiles.collision_tile(new_rect, (None, None)) { true }
+            let destroy = if let Some((_, _)) = tiles.collision_tile(&new_rect, (None, None)) { true }
             else { false };
 
             (new_rect, moved, destroy)
@@ -596,14 +574,13 @@ impl DynamicItems {
         let mut moved = false;
         let mut destroyed = false;
 
-        let mut poof_list: Vec<(f32, f32)> = Vec::new();
+        let mut poof_list: Vec<Point<f32>> = Vec::new();
         let mut triggers: Vec<u8> = Vec::new();
 
         for chest in self.chests.iter_mut().filter(|c| c.visible && !c.is_static ) {
-            let (new_rect, mov, destroy) = do_collision(chest.get_rect());
+            let (new_rect, mov, destroy) = do_collision(&chest.get_rect());
 
-            chest.x = new_rect.x();
-            chest.y = new_rect.y();
+            chest.xy = new_rect.left_top();
 
             if mov { moved = true }
 
@@ -612,29 +589,27 @@ impl DynamicItems {
                 if let Some(trigger) = chest.explode_trigger {
                     triggers.push(trigger);
                 }
-                poof_list.push((chest.x, chest.y));
+                poof_list.push(chest.xy);
                 destroyed = true;
             }
         }
 
         for monster1 in self.monsters1.iter_mut().filter(|m| m.visible) {
-            let (new_rect, mov, destroy) = do_collision(monster1.get_rect());
+            let (new_rect, mov, destroy) = do_collision(&monster1.get_rect());
 
-            monster1.x = new_rect.x();
-            monster1.y = new_rect.y();
+            monster1.xy = new_rect.left_top();
 
             if mov { moved = true }
 
             if destroy {
                 monster1.visible = false;
-                poof_list.push((monster1.x, monster1.y));
+                poof_list.push(monster1.xy);
                 destroyed = true;
             }
         }
 
         for poof in poof_list.iter() {
-            let &(x, y) = poof;
-            self.add_poof(x, y);
+            self.add_poof(*poof);
         }
 
         for trigger in triggers.iter() {
@@ -660,7 +635,8 @@ impl DynamicItems {
 
             chest.fall_phase += 0.06 * fall_rate;
             if chest.fall_phase > 1.0 { chest.fall_phase = 1.0 }
-            chest.y = lerp(chest.original_y, chest.original_y + chest.fall_distance, curve(chest.fall_phase));
+            let y = lerp(chest.original_xy.y(), chest.original_xy.y() + chest.fall_distance, curve(chest.fall_phase));
+            chest.xy = chest.xy.set_y(&self.screen, y);
         }
 
         for chest in self.chests.iter_mut().filter(|c| c.visible && c.opened && c.phase < 1.0) {
@@ -685,24 +661,26 @@ impl DynamicItems {
                 _ => 0.0
             };
 
-            monster2.x = lerp(monster2.original_x - 16.0, monster2.original_x + 16.0, p);
+            let x = monster2.original_xy.x();
+            let new_x = lerp(x - 16.0, x + 16.0, p);
+            monster2.xy = monster2.xy.set_x(&self.screen, new_x);
         }
     }
 
     fn step_keys(&mut self) {
         for key in self.keys.iter_mut().filter(|k| k.is_free()) {
-            key.step()
+            key.step(&self.screen)
         }
     }
 
-    pub fn rect_hits_monsters(&self, rect: (f32, f32, f32, f32)) -> bool {
+    pub fn rect_hits_monsters(&self, rect: &Rect<f32>) -> bool {
         for monster1 in self.monsters1.iter().filter(|m| m.visible) {
-            if collision::test_rects(rect, monster1.get_rect()) {
+            if collision::test_rects(rect, &monster1.get_rect()) {
                 return true;
             }
         }
         for monster2 in self.monsters2.iter().filter(|m| m.visible) {
-            if collision::test_rects(rect, monster2.get_rect()) {
+            if collision::test_rects(rect, &monster2.get_rect()) {
                 return true;
             }
         }

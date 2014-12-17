@@ -1,6 +1,6 @@
 use std::num::FromStrRadix;
 use serialize;
-use super::rect::RectExt;
+use super::rect::Rect;
 use super::wrapping::Screen;
 
 #[deriving(Clone)]
@@ -187,8 +187,8 @@ impl Tiles {
 
     /// Direction: (right?, down?)
     /// Returns: new top_left
-    pub fn collision_tile(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
-        let (x, y, _, _) = rect;
+    pub fn collision_tile(&self, rect: &Rect<f32>, direction: (Option<bool>, Option<bool>)) -> Option<(f32, f32)> {
+        let (x, y) = rect.left_top().xy();
 
         let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
 
@@ -201,8 +201,8 @@ impl Tiles {
         }
     }
 
-    pub fn collision_tile_digging(&self, rect: (f32, f32, f32, f32), direction: (Option<bool>, Option<bool>), get_emerge: bool) -> Option<(f32, f32, bool)> {
-        let (x, y, _, _) = rect;
+    pub fn collision_tile_digging(&self, rect: &Rect<f32>, direction: (Option<bool>, Option<bool>), get_emerge: bool) -> Option<(f32, f32, bool)> {
+        let (x, y) = rect.left_top().xy();
 
         let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
 
@@ -225,10 +225,10 @@ impl Tiles {
         }
     }
 
-    fn get_left_top_tile_coord(&self, rect: (f32, f32, f32, f32)) -> ((int, int), (int, int)) {
+    fn get_left_top_tile_coord(&self, rect: &Rect<f32>) -> ((int, int), (int, int)) {
         use std::num::Float;
 
-        let (x, y) = rect.left_top();
+        let (x, y) = rect.left_top().xy();
         let (w, h) = rect.size();
 
         let (left, top) = {
@@ -247,7 +247,7 @@ impl Tiles {
         ((left, top), (right, bottom))
     }
 
-    fn get_tiles_in_rect(&self, rect: (f32, f32, f32, f32)) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
+    fn get_tiles_in_rect(&self, rect: &Rect<f32>) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
         let ((left, top), (right, bottom)) = self.get_left_top_tile_coord(rect);
 
         ([
@@ -258,7 +258,7 @@ impl Tiles {
         ], (left, top), (right, bottom))
     }
 
-    pub fn is_tile_inside(&self, rect: (f32, f32, f32, f32), tile_id: u16) -> Option<(u8, u8)> {
+    pub fn is_tile_inside(&self, rect: &Rect<f32>, tile_id: u16) -> Option<(u8, u8)> {
         let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
             if (*tile).tile_type.id-1 == tile_id {
@@ -268,12 +268,12 @@ impl Tiles {
         None
     }
 
-    pub fn is_dirt_entrance_below(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        self.is_tile_inside(rect.offset(&self.screen, 0.0, self.tile_size / 4.0), 0x15)
+    pub fn is_dirt_entrance_below(&self, rect: &Rect<f32>) -> Option<(u8, u8)> {
+        self.is_tile_inside(&rect.offset(&self.screen, 0.0, self.tile_size / 4.0), 0x15)
     }
 
-    pub fn is_key_entrance_beside(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
-        if let Some((x, y)) = self.is_tile_inside(rect.offset(&self.screen, -self.tile_size / 4.0, 0.0), 0x17) {
+    pub fn is_key_entrance_beside(&self, rect: &Rect<f32>) -> Option<(u8, u8)> {
+        if let Some((x, y)) = self.is_tile_inside(&rect.offset(&self.screen, -self.tile_size / 4.0, 0.0), 0x17) {
             Some((x, y))
         } else {
             None
@@ -284,7 +284,7 @@ impl Tiles {
         self.set_tile(x, y, Tile::empty());
     }
 
-    pub fn has_non_blocking_tile(&self, rect: (f32, f32, f32, f32)) -> Option<(u8, u8)> {
+    pub fn has_non_blocking_tile(&self, rect: &Rect<f32>) -> Option<(u8, u8)> {
         let (tiles, _left_top, _right_bottom) = self.get_tiles_in_rect(rect);
         for &(tile, x, y) in tiles.iter() {
             if !(*tile).tile_type.is_blocking {
@@ -294,7 +294,7 @@ impl Tiles {
         None
     }
 
-    pub fn take_coins(&mut self, rect: (f32, f32, f32, f32)) -> uint {
+    pub fn take_coins(&mut self, rect: &Rect<f32>) -> uint {
         let mut count = 0;
         while let Some((x, y)) = self.is_tile_inside(rect, 0x20) {
             self.set_tile(x, y, Tile::empty());

@@ -4,6 +4,7 @@ use opengl_util::texture::Texture2D;
 use opengl_util::vertex::VertexArray;
 use game_platforms::GameRenderer;
 use super::{Game, GameStepResult};
+use super::rect::Point;
 
 mod tileset;
 
@@ -46,6 +47,9 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
         use std::num::Float;
         use self::tileset::TilesetDrawer;
 
+        let screen_val = game.level.get_screen();
+        let screen = &screen_val;
+
         unsafe {
             let (w, h) = step_result.viewport;
             gl::Viewport(0, 0, w, h);
@@ -71,7 +75,8 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
                     }
                 };
-                let draw_tile_all = |x: f32, y: f32, id: u16, flip: (bool, bool), rotate_90: bool| {
+                let draw_tile_all = |xy: Point<f32>, id: u16, flip: (bool, bool), rotate_90: bool| {
+                    let (x, y) = xy.floor(screen, 1.0).xy();
                     tileset_drawer.draw((x, y), id, flip, rotate_90);
                 };
 
@@ -79,7 +84,8 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                 // Draw parallax
                 for y in range(0, game.level.height) {
                     for x in range(0, game.level.width) {
-                        draw_tile_all(x as f32 * tile_size, y as f32 * tile_size, 0x46, (false, false), false);
+                        let pos = Point::new(screen, (x as f32 * tile_size, y as f32 * tile_size));
+                        draw_tile_all(pos, 0x46, (false, false), false);
                     }
                 }
 
@@ -88,11 +94,12 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                 // Draw all background tiles
                 for (x, y, tile) in game.level.iter() {
                     if tile.tile_type.id > 0 {
-                        let (fx, fy) = (x as f32 * tile_size, y as f32 * tile_size);
+                        let f = (x as f32 * tile_size, y as f32 * tile_size);
+                        let pos = Point::new(screen, f);
                         let id = tile.tile_type.id-1;
                         let flip = (tile.flip_x, tile.flip_y);
 
-                        draw_tile_all(fx, fy, id, flip, false);
+                        draw_tile_all(pos, id, flip, false);
                     }
                 }
 
@@ -102,10 +109,9 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         let offset_x = i % message.width;
                         let offset_y = i / message.width;
 
-                        let x = message.x + offset_x as f32 * tile_size;
-                        let y = message.y + offset_y as f32 * tile_size;
+                        let xy = message.xy.offset(screen, offset_x as f32 * tile_size, offset_y as f32 * tile_size);
 
-                        draw_tile_all(x, y, *tile_id, (false, false), false);
+                        draw_tile_all(xy, *tile_id, (false, false), false);
                     }
                 }
 
@@ -115,7 +121,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         false => 0x18,
                         true => 0x19
                     };
-                    draw_tile_all(Float::floor(switch.x), Float::floor(switch.y), tile, (false, false), false);
+                    draw_tile_all(switch.xy, tile, (false, false), false);
                 }
 
                 // Draw beanstalks
@@ -125,7 +131,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                             0 => 0x0E,
                             _ => 0x0F
                         };
-                        draw_tile_all(Float::floor(beanstalk.x), Float::floor(beanstalk.y + y as f32 * tile_size), tile, (false, false), false);
+                        draw_tile_all(beanstalk.xy.offset(screen, 0.0, y as f32 * tile_size), tile, (false, false), false);
                     }
                 }
 
@@ -136,7 +142,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         false => 5
                     };
                     let tile = tile_from_phase(&[0x04, 0x05, 0x06, 0x07, 0x08], chest.phase) + tile_offset;
-                    draw_tile_all(Float::floor(chest.x), Float::floor(chest.y) + tile_size * 3.0/16.0, tile, (false, false), false);
+                    draw_tile_all(chest.xy.offset(screen, 0.0, tile_size * 3.0/16.0), tile, (false, false), false);
                 }
 
                 // Draw player
@@ -150,7 +156,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                             } else {
                                 0x00
                             };
-                            draw_tile_all(Float::floor(s.x), Float::floor(s.y)+3.0, tile, s.direction.get_flip(), false);
+                            draw_tile_all(s.xy.offset(screen, 0.0, tile_size * 3.0/16.0), tile, s.direction.get_flip(), false);
                             if let Some(_) = game.player.gun {
                                 let tile = 0x3B;
 
@@ -159,7 +165,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                                     false => 4.0,
                                     true => -4.0
                                 };
-                                draw_tile_all(Float::floor(s.x)+x_offset, Float::floor(s.y)+5.0, tile, s.direction.get_flip(), false);
+                                draw_tile_all(s.xy.offset(screen, x_offset, tile_size * 5.0/16.0), tile, s.direction.get_flip(), false);
                             } else if let Some(ref drill) = game.player.drill {
                                 let tile = tile_from_phase(&[0x23, 0x24, 0x25, 0x36], drill.phase);
 
@@ -168,7 +174,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                                     false => 10.0,
                                     true => -10.0
                                 };
-                                draw_tile_all(Float::floor(s.x)+x_offset, Float::floor(s.y)+3.0, tile, s.direction.get_flip(), false);
+                                draw_tile_all(s.xy.offset(screen, x_offset, tile_size * 3.0/16.0), tile, s.direction.get_flip(), false);
                             }
                         },
                         PlayerState::Digging(ref s) => {
@@ -193,17 +199,18 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                             };
 
                             if drill_behind {
-                                draw_tile_all(Float::floor(s.x) + drill_x, Float::floor(s.y) + drill_y, drill_tile, drill_flip, drill_rotate_90);
-                                draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false), false);
+
+                                draw_tile_all(s.xy.offset(screen, drill_x, drill_y), drill_tile, drill_flip, drill_rotate_90);
+                                draw_tile_all(s.xy, tile, (flip_x, false), false);
                             } else {
-                                draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false), false);
-                                draw_tile_all(Float::floor(s.x) + drill_x, Float::floor(s.y) + drill_y, drill_tile, drill_flip, drill_rotate_90);
+                                draw_tile_all(s.xy, tile, (flip_x, false), false);
+                                draw_tile_all(s.xy.offset(screen, drill_x, drill_y), drill_tile, drill_flip, drill_rotate_90);
                             }
                         },
                         PlayerState::Emerging(ref s) => {
                             let tile = 0x3A;
-                            let flip_x = s.to_x < s.from_x;
-                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false), false);
+                            let flip_x = s.to_x < s.from_xy.x();
+                            draw_tile_all(s.xy, tile, (flip_x, false), false);
                         },
                         PlayerState::Climbing(ref s) => {
                             let tile = 0x2D;
@@ -211,7 +218,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                                 0.0...1.0 => false,
                                 _ => true
                             };
-                            draw_tile_all(Float::floor(s.x), Float::floor(s.y), tile, (flip_x, false), false);
+                            draw_tile_all(s.xy, tile, (flip_x, false), false);
                         },
                         PlayerState::Dying(_) => ()
                     };
@@ -220,12 +227,12 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                 // Draw monsters
                 for monster1 in game.items.monsters1.iter().filter(|m| m.visible ) {
                     let tile = tile_from_phase(&[0x26, 0x27], monster1.phase);
-                    draw_tile_all(Float::floor(monster1.x), Float::floor(monster1.y), tile, (false, false), false);
+                    draw_tile_all(monster1.xy, tile, (false, false), false);
                 }
 
                 for monster2 in game.items.monsters2.iter().filter(|m| m.visible ) {
                     let tile = tile_from_phase(&[0x28, 0x29], monster2.phase);
-                    draw_tile_all(Float::floor(monster2.x), Float::floor(monster2.y), tile, (false, false), false);
+                    draw_tile_all(monster2.xy, tile, (false, false), false);
                 }
 
                 // Draw keys
@@ -234,19 +241,19 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         true => 0x2E,
                         false => 0x2F
                     };
-                    draw_tile_all(Float::floor(key.x), Float::floor(key.y), tile, (false, false), false);
+                    draw_tile_all(key.xy, tile, (false, false), false);
                 }
 
                 // Draw useless
                 for useless in game.items.useless.iter() {
                     let tile = 0x45;
-                    draw_tile_all(Float::floor(useless.x), Float::floor(useless.y), tile, (false, false), false);
+                    draw_tile_all(useless.xy, tile, (false, false), false);
                 }
 
                 // Draw poofs
                 for poof in game.items.poofs.iter() {
                     let tile = tile_from_phase(&[0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F], poof.phase);
-                    draw_tile_all(Float::floor(poof.x), Float::floor(poof.y), tile, (false, false), false);
+                    draw_tile_all(poof.xy, tile, (false, false), false);
                 }
 
                 // Draw bullets
@@ -255,7 +262,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                     let flip_x = bullet.vel_x < 0.0;
                     let offset_x = if flip_x { -16.0 } else { 0.0 };
 
-                    draw_tile_all(Float::floor(bullet.x) + offset_x, Float::floor(bullet.y) - 8.0, tile, (flip_x, false), false);
+                    draw_tile_all(bullet.xy.offset(screen, offset_x, -8.0), tile, (flip_x, false), false);
                 }
             });
         });
