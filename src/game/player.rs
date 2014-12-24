@@ -396,8 +396,6 @@ impl Player {
     }
 
     pub fn get_pos(&self) -> Point<f32> {
-        use std::num::Float;
-
         match self.state {
             PlayerState::Stand(ref s) => s.xy,
             PlayerState::Digging(ref s) => s.xy,

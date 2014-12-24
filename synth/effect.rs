@@ -2,9 +2,9 @@
 
 use super::{ChannelEffectOut};
 
-use std::iter::{Take, Repeat};
 use std::rand::{XorShiftRng};
 
+#[deriving(Copy)]
 pub struct RandomEffect {
     pub freq: (f32, f32),
     pub volume: (f32, f32),
@@ -16,7 +16,7 @@ impl RandomEffect {
         use std::num::Float;
 
         fn sort(r: (f32, f32)) -> (f32, f32) {
-            if r.val0() > r.val1() { (r.val1(), r.val0()) }
+            if r.0 > r.1 { (r.1, r.0) }
             else { r }
         }
 

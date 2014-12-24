@@ -1,5 +1,3 @@
-#![feature(if_let)]
-
 use noise::Noise;
 use pulse::Pulse;
 use triangle::Triangle;
@@ -70,8 +68,6 @@ pub struct Controller<'a> {
 
 impl<'a> Controller<'a> {
     pub fn new(sink_freq: f32, tick_length_s: f32, layers: uint) -> Controller<'a> {
-        use std::default::Default;
-
         let tick_length = (tick_length_s * sink_freq) as uint;
 
         Controller {
@@ -98,12 +94,12 @@ impl<'a> Controller<'a> {
     }
 
     pub fn set_effect(&mut self, layer: uint, channel: uint, effect: Box<Iterator<ChannelEffectOut> + 'a>) {
-        let mut layer = self.get_layer(layer);
+        let layer = self.get_layer(layer);
         layer[channel] = Some(effect);
     }
 
     pub fn clear_effect(&mut self, layer: uint, channel: uint) {
-        let mut layer = self.get_layer(layer);
+        let layer = self.get_layer(layer);
         layer[channel] = None;
     }
 

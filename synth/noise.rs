@@ -4,7 +4,6 @@
 //! pattern for the noise.
 
 use super::{Channel, ChannelEffectOut};
-use super::pulse::Pulse;
 
 pub struct Noise {
     random_iterator: RepeatingIterator<f32>,
@@ -16,7 +15,6 @@ pub struct Noise {
 impl Noise {
     pub fn new() -> Noise {
         use std::rand::{Rng, XorShiftRng};
-        use std::iter::CloneIteratorExt;
 
         let mut rng = XorShiftRng::new_unseeded();
 
@@ -71,11 +69,6 @@ impl<T> RepeatingIterator<T> {
     }
 
     pub fn current(&self) -> &T { self.vec.get(self.index).unwrap() }
-
-    pub fn last(&self) -> &T {
-        let len = self.vec.len();
-        self.vec.get((self.index + len - 1) % len).unwrap()
-    }
 }
 
 impl<T: Clone> Iterator<T> for RepeatingIterator<T> {

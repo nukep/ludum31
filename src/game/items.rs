@@ -337,7 +337,6 @@ impl DynamicItems {
         let screen = self.screen;
 
         for poof in poof_list.iter() {
-            let (x, y) = poof.xy();
             self.add_poof(poof.offset(&screen, -5.0, -5.0));
             self.add_poof(poof.offset(&screen, 5.0, 5.0));
             self.add_poof(poof.offset(&screen, 12.0, -3.0));
