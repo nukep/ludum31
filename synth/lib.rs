@@ -92,8 +92,6 @@ impl<'a> Controller<'a> {
     }
 
     fn get_layer(&mut self, layer: usize) -> &mut [Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4] {
-        use std::ops::IndexMut;
-
         &mut self.channel_effects[layer]
     }
 
@@ -122,8 +120,7 @@ impl<'a> Controller<'a> {
             r => r
         };
 
-        let o = out.slice_mut(offset, offset + samples);
-        self.generator.generate(o);
+        self.generator.generate(&mut out[offset..offset+samples]);
 
         samples
     }
