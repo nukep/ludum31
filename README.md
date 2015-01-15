@@ -23,12 +23,12 @@ All audio is synthesized in-game, and resembles NES-style audio
 (there are 4 channels after all: 2 pulses, 1 triangle, and 1 noise).
 
 **Note:** There is a lot of cleanup that needs to be done.
+In fact, a lot of the code is simply horrible; I mostly attribute this to reckless code-vomiting in the face of an ever-nearing deadline.
 The game logic in particular is very ad-hoc.
 
 ## Todo
 - [ ] Move `rust-game-platforms` to its own repo
 - [ ] Move `synth` to its own repo
-- [ ] Decouple player and items logic, minimize inter-communication
+- [ ] Make rendering code more polymorphic (or at least more DRY)
 - [ ] Clean up Tiled JSON level loader
 - [ ] Simplify collision
-- [ ] Add Travis CI
