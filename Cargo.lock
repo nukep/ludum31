@@ -6,6 +6,7 @@ dependencies = [
  "game_platforms 0.0.1",
  "gl 0.0.5 (git+https://github.com/bjz/gl-rs)",
  "image 0.2.0-alpha.4 (git+https://github.com/PistonDevelopers/image)",
+ "rustc-serialize 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.0.17 (git+https://github.com/AngryLawyer/rust-sdl2)",
  "synth 0.0.1",
  "time 0.1.12 (git+https://github.com/rust-lang/time)",

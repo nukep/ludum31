@@ -11,6 +11,9 @@ print-fps = ["game_platforms/print-fps"]
 statically-link-sdl2 = []
 no-console = []
 
+[dependencies]
+rustc-serialize = "0.2"
+
 [dependencies.sdl2]
 git = "https://github.com/AngryLawyer/rust-sdl2"
 

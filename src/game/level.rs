@@ -1,5 +1,5 @@
 use std::num::FromStrRadix;
-use serialize;
+use rustc_serialize;
 use super::rect::Rect;
 use super::wrapping::Screen;
 
@@ -379,7 +379,7 @@ impl<'a> Iterator for LevelTileIterator<'a> {
 
 fn parse_from_json(input: &str) -> Level {
     use std::str::FromStr;
-    use serialize::json::Json;
+    use rustc_serialize::json::Json;
 
 
     let (width, height) = (28, 16);
@@ -570,7 +570,7 @@ fn parse_from_json(input: &str) -> Level {
     }
 }
 
-fn parse_tiles(properties: &serialize::json::Object, key: &str) -> Vec<u16> {
+fn parse_tiles(properties: &rustc_serialize::json::Object, key: &str) -> Vec<u16> {
     match properties.get(key) {
         Some(j) => {
             let value_str = j.as_string().expect("Not a JSON string");
@@ -583,7 +583,7 @@ fn parse_tiles(properties: &serialize::json::Object, key: &str) -> Vec<u16> {
     }
 }
 
-fn parse_property_as_boolean(properties: &serialize::json::Object, key: &str) -> bool {
+fn parse_property_as_boolean(properties: &rustc_serialize::json::Object, key: &str) -> bool {
     match properties.get(key) {
         Some(j) => {
             let value_str = j.as_string().expect("Not a JSON string");
@@ -596,7 +596,7 @@ fn parse_property_as_boolean(properties: &serialize::json::Object, key: &str) ->
     }
 }
 
-fn parse_property_as_number<T: FromStrRadix>(properties: &serialize::json::Object, key: &str) -> Option<T> {
+fn parse_property_as_number<T: FromStrRadix>(properties: &rustc_serialize::json::Object, key: &str) -> Option<T> {
     match properties.get(key) {
         Some(j) => {
             let value_str = j.as_string().expect("Not a JSON string");

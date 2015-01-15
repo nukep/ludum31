@@ -5,9 +5,9 @@ extern crate cgmath;
 extern crate game_platforms;
 extern crate gl;
 extern crate image;
+extern crate "rustc-serialize" as rustc_serialize;
 extern crate sdl2;
 extern crate synth;
-extern crate serialize;
 
 mod game;
 #[allow(dead_code)] mod opengl_util;
