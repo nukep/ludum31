@@ -29,5 +29,5 @@ git = "https://github.com/rust-lang/time"
 [dependencies.synth]
 path = "synth"
 
-[dependencies.lodepng]
-git = "https://github.com/nukep/lodepng-rust"
+[dependencies.image]
+git = "https://github.com/PistonDevelopers/image"

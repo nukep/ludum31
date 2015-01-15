@@ -1,11 +1,12 @@
 #![feature(link_args)]
+#![feature(box_syntax)]
 
 extern crate cgmath;
 extern crate game_platforms;
 extern crate gl;
+extern crate image;
 extern crate sdl2;
 extern crate synth;
-extern crate lodepng;
 extern crate serialize;
 
 mod game;

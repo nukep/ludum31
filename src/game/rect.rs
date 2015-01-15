@@ -1,13 +1,13 @@
 use super::wrapping::Screen;
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Rect<S> {
     xy: Point<S>,
     w: S,
     h: S
 }
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Point<S> {
     x: S,
     y: S

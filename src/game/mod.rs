@@ -69,8 +69,10 @@ impl Game {
     }
 }
 
-impl GameStepper<Input, GameStepResult> for Game {
-    fn steps_per_second() -> u32 { 60 }
+impl GameStepper<Input> for Game {
+    type StepResult = GameStepResult;
+
+    fn steps_per_second(&self) -> u32 { 60 }
     fn step(&mut self, input: &Input) -> PlatformStepResult<GameStepResult> {
         use game_platforms::PlatformStepResult::{Continue, Exit};
         use sdl2::keycode::KeyCode;

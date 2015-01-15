@@ -4,7 +4,7 @@ use super::{ChannelEffectOut};
 
 use std::rand::{XorShiftRng};
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct RandomEffect {
     pub freq: (f32, f32),
     pub volume: (f32, f32),
@@ -38,7 +38,9 @@ pub struct RandomEffectIterator {
     duty: (f32, f32)
 }
 
-impl Iterator<ChannelEffectOut> for RandomEffectIterator {
+impl Iterator for RandomEffectIterator {
+    type Item = ChannelEffectOut;
+
     fn next(&mut self) -> Option<ChannelEffectOut> {
         use std::rand::Rng;
 
@@ -61,7 +63,7 @@ impl Iterator<ChannelEffectOut> for RandomEffectIterator {
     }
 }
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct SweepEffect {
     pub freq: (f32, f32),
     pub volume: (f32, f32),
@@ -111,7 +113,7 @@ impl SweepEffect {
     }
 }
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct SweepEffectIterator {
     freq_log: (f32, f32),
     volume: (f32, f32),
@@ -121,7 +123,9 @@ pub struct SweepEffectIterator {
     tick: uint
 }
 
-impl Iterator<ChannelEffectOut> for SweepEffectIterator {
+impl Iterator for SweepEffectIterator {
+    type Item = ChannelEffectOut;
+
     fn next(&mut self) -> Option<ChannelEffectOut> {
         fn lerp(ab: (f32, f32), p: f32) -> f32 {
             let (a, b) = ab;
@@ -152,14 +156,16 @@ impl Iterator<ChannelEffectOut> for SweepEffectIterator {
 
 
 
-#[deriving(Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct SweepEffectTriangleIterator {
     forward: SweepEffectIterator,
     reverse: SweepEffectIterator,
     on_reverse: bool
 }
 
-impl Iterator<ChannelEffectOut> for SweepEffectTriangleIterator {
+impl Iterator for SweepEffectTriangleIterator {
+    type Item = ChannelEffectOut;
+
     fn next(&mut self) -> Option<ChannelEffectOut> {
         if self.on_reverse {
             self.reverse.next()

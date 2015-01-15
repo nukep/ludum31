@@ -26,7 +26,7 @@ pub struct PlayerItemDrill {
 
 pub struct PlayerItemGun;
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub enum PlayerStandDirection {
     Left,
     Right
@@ -41,7 +41,7 @@ impl PlayerStandDirection {
     }
 }
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub enum PlayerDiggingDirection {
     Up,
     Down,
@@ -218,12 +218,12 @@ impl PlayerStateEmerging {
                 running_cycle: None
             }))
         } else {
-            use std::num::{Float, FloatMath};
+            use std::num::Float;
 
             fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
 
             let coeff = 2.3;
-            let y_phase = FloatMath::sin(self.phase * coeff) / FloatMath::sin(coeff);
+            let y_phase = Float::sin(self.phase * coeff) / Float::sin(coeff);
             let x_phase = self.phase.powf(3.0);
 
             let (fx, fy) = self.from_xy.xy();

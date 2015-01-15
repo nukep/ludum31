@@ -22,7 +22,7 @@ impl Renderer {
         let a_position = shader_program.get_attrib("position");
         let a_texture_uv = shader_program.get_attrib("texture_uv");
 
-        let tileset_data = include_bin!("../../../assets/tileset.png");
+        let tileset_data = include_bytes!("../../../assets/tileset.png");
         let tileset = match png::load_png32_data_and_upload(tileset_data) {
             Ok(tileset) => tileset,
             Err(e) => panic!("{}", e)
@@ -75,7 +75,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                         vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
                     }
                 };
-                let draw_tile_all = |xy: Point<f32>, id: u16, flip: (bool, bool), rotate_90: bool| {
+                let draw_tile_all = |&: xy: Point<f32>, id: u16, flip: (bool, bool), rotate_90: bool| {
                     let (x, y) = xy.floor(screen, 1.0).xy();
                     tileset_drawer.draw((x, y), id, flip, rotate_90);
                 };

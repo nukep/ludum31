@@ -4,14 +4,16 @@ extern crate time;
 pub mod sdl2_opengl;
 mod fps_meter;
 
-pub enum PlatformStepResult<SR> {
-    Continue(SR),
+pub enum PlatformStepResult<StepResult> {
+    Continue(StepResult),
     Exit
 }
 
-pub trait GameStepper<I, SR> {
-    fn steps_per_second() -> u32;
-    fn step(&mut self, input: &I) -> PlatformStepResult<SR>;
+pub trait GameStepper<Input> {
+    type StepResult;
+
+    fn steps_per_second(&self) -> u32;
+    fn step(&mut self, input: &Input) -> PlatformStepResult<Self::StepResult>;
 }
 
 pub trait GameRenderer<GameStepper, StepResult> {

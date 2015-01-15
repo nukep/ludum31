@@ -1,14 +1,15 @@
 use gl;
 use gl::types::{GLint, GLuint, GLsizei};
-use lodepng;
+use image;
 use opengl_util::texture::Texture2D;
 
 pub fn load_png32_data_and_upload(png_data: &[u8]) -> Result<Texture2D, String> {
     use std::mem::transmute;
 
-    let img = match lodepng::decode32(png_data) {
-        Ok(img) => img,
-        Err(e) => return Err(format!("LodePNG decoding error: {}", e))
+    let img = match image::load_from_memory_with_format(png_data, image::ImageFormat::PNG) {
+        Ok(image::DynamicImage::ImageRgba8(img)) => img,
+        Ok(_) => return Err(format!("Unexpected DynamicImage type")),
+        Err(e) => return Err(format!("PNG decoding error: {:?}", e))
     };
 
     let tex_id: GLuint = unsafe {
@@ -23,15 +24,15 @@ pub fn load_png32_data_and_upload(png_data: &[u8]) -> Result<Texture2D, String> 
     }
 
     unsafe {
-        let ptr = transmute(img.buffer.get(0).unwrap());
+        let ptr = transmute(img.as_slice().as_ptr());
         let internal = gl::RGBA8 as GLint;
         let format = gl::RGBA;
         gl::TexImage2D(
             gl::TEXTURE_2D,
             0,
             internal,
-            img.width as GLsizei,
-            img.height as GLsizei,
+            img.width() as GLsizei,
+            img.height() as GLsizei,
             0,
             format,
             gl::UNSIGNED_BYTE,

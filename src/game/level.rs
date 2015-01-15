@@ -3,7 +3,7 @@ use serialize;
 use super::rect::Rect;
 use super::wrapping::Screen;
 
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Tile {
     pub tile_type: TileType,
     pub flip_x: bool,
@@ -20,7 +20,7 @@ impl Tile {
     }
 }
 
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct TileType {
     pub id: u16,
     pub is_blocking: bool,
@@ -143,12 +143,12 @@ impl Tiles {
 
     pub fn get_tile(&self, x: u8, y: u8) -> &Tile {
         let offset = y as uint * self.width as uint + x as uint;
-        self.tiles.index(&offset)
+        &self.tiles[offset]
     }
 
     pub fn set_tile(&mut self, x: u8, y: u8, tile: Tile) {
         let offset = y as uint * self.width as uint + x as uint;
-        *self.tiles.index_mut(&offset) = tile;
+        self.tiles[offset] = tile;
     }
 
     pub fn apply_set_to(&mut self, set_to: &SetTo) {
@@ -247,7 +247,7 @@ impl Tiles {
         ((left, top), (right, bottom))
     }
 
-    fn get_tiles_in_rect(&self, rect: &Rect<f32>) -> ([(&Tile, int, int), ..4], (int, int), (int, int)) {
+    fn get_tiles_in_rect(&self, rect: &Rect<f32>) -> ([(&Tile, int, int); 4], (int, int), (int, int)) {
         let ((left, top), (right, bottom)) = self.get_left_top_tile_coord(rect);
 
         ([
@@ -361,12 +361,14 @@ pub struct LevelTileIterator<'a> {
     index: uint
 }
 
-impl<'a> Iterator<(u8, u8, &'a Tile)> for LevelTileIterator<'a> {
+impl<'a> Iterator for LevelTileIterator<'a> {
+    type Item = (u8, u8, &'a Tile);
+
     fn next(&mut self) -> Option<(u8, u8, &'a Tile)> {
         if self.index >= self.tiles.len() {
             None
         } else {
-            let tile = self.tiles.index(&self.index);
+            let tile = &self.tiles[self.index];
             let (x, y) = (self.index % self.width, self.index / self.width);
             self.index += 1;
 

@@ -71,7 +71,9 @@ impl<T> RepeatingIterator<T> {
     pub fn current(&self) -> &T { self.vec.get(self.index).unwrap() }
 }
 
-impl<T: Clone> Iterator<T> for RepeatingIterator<T> {
+impl<T: Clone> Iterator for RepeatingIterator<T> {
+    type Item = T;
+
     fn next(&mut self) -> Option<T> {
         let value = self.vec.get(self.index).unwrap();
         self.index = (self.index + 1) % self.vec.len();

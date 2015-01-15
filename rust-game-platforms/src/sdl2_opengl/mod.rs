@@ -7,13 +7,13 @@ use std::collections::HashSet;
 use super::{GameStepper, GameRenderer, PlatformStepResult};
 use super::fps_meter::{FPSMeter, ValueOnChange};
 
-#[deriving(Clone)]
+#[derive(Clone)]
 struct SDLInputFrame {
     /// sdl2::keycode::KeyCode doesn't implement Clone, so we need to store an integer representation
     keyboard: HashSet<uint>,
-    mouse: Option<(sdl2::mouse::MouseState, int, int)>,
+    mouse: Option<(sdl2::mouse::MouseState, i32, i32)>,
     mouse_in_focus: bool,
-    mouse_wheel_absolute: (int, int),
+    mouse_wheel_absolute: (i32, i32),
     viewport: (i32, i32),
     exit_request: bool,
     fps: Option<f64>
@@ -40,18 +40,20 @@ impl SDLInputFrame {
     }
 
     fn is_keycode_down(&self, keycode: sdl2::keycode::KeyCode) -> bool {
+        use std::num::ToPrimitive;
+
         let keycode_int = keycode.to_uint().expect("Could not convert keycode to uint");
         self.keyboard.contains(&keycode_int)
     }
 
-    fn get_mouse_position_if_focused(&self) -> Option<(int, int)> {
+    fn get_mouse_position_if_focused(&self) -> Option<(i32, i32)> {
         match self.mouse {
             Some((_, x, y)) if self.mouse_in_focus => Some((x, y)),
             _ => None
         }
     }
 
-    fn get_mouse_position_if_button(&self, button: sdl2::mouse::MouseState) -> Option<(int, int)> {
+    fn get_mouse_position_if_button(&self, button: sdl2::mouse::MouseState) -> Option<(i32, i32)> {
         match self.mouse {
             Some((mouse_state, x, y)) if mouse_state.intersects(button) => {
                 Some((x, y))
@@ -91,15 +93,15 @@ impl Input {
         !self.last_frame.is_mouse_button_down(button) && self.current_frame.is_mouse_button_down(button)
     }
 
-    pub fn get_mouse_position_if_focused(&self) -> Option<(int, int)> {
+    pub fn get_mouse_position_if_focused(&self) -> Option<(i32, i32)> {
         self.current_frame.get_mouse_position_if_focused()
     }
 
-    pub fn get_mouse_position_if_button(&self, button: sdl2::mouse::MouseState) -> Option<(int, int)> {
+    pub fn get_mouse_position_if_button(&self, button: sdl2::mouse::MouseState) -> Option<(i32, i32)> {
         self.current_frame.get_mouse_position_if_button(button)
     }
 
-    pub fn get_mouse_wheel_delta(&self) -> (int, int) {
+    pub fn get_mouse_wheel_delta(&self) -> (i32, i32) {
         match (self.current_frame.mouse_wheel_absolute, self.last_frame.mouse_wheel_absolute) {
             ((cx, cy), (lx, ly)) => (cx-lx, cy-ly)
         }
@@ -107,7 +109,7 @@ impl Input {
 
     /// Get the mouse delta since the last frame if the specified button was
     /// down for both the last and current frame.
-    pub fn get_mouse_drag_delta(&self, button: sdl2::mouse::MouseState) -> Option<(int, int)> {
+    pub fn get_mouse_drag_delta(&self, button: sdl2::mouse::MouseState) -> Option<(i32, i32)> {
         match (self.last_frame.get_mouse_position_if_button(button), self.current_frame.get_mouse_position_if_button(button)) {
             (Some((o_x, o_y)), Some((n_x, n_y))) => {
                 match (n_x - o_x, n_y - o_y) {
@@ -199,15 +201,17 @@ impl<Renderer> RenderContext<Renderer> {
     }
 }
 
-pub struct Platform<StepResult, Renderer, Stepper> {
+pub struct Platform<Renderer, Stepper> {
     render_ctx: RenderContext<Renderer>,
     game: Stepper,
 
-    mouse_wheel_absolute: (int, int)
+    mouse_wheel_absolute: (i32, i32)
 }
 
-impl<StepResult, Stepper: GameStepper<Input, StepResult>, Renderer: GameRenderer<Stepper, StepResult>> Platform<StepResult, Renderer, Stepper> {
-    pub fn new(game: Stepper, render_ctx: RenderContext<Renderer>) -> Result<Platform<StepResult, Renderer, Stepper>, String> {
+impl<Stepper, Renderer> Platform<Renderer, Stepper> where
+    Stepper: GameStepper<Input>, Renderer: GameRenderer<Stepper, <Stepper as GameStepper<Input>>::StepResult>
+{
+    pub fn new(game: Stepper, render_ctx: RenderContext<Renderer>) -> Result<Platform<Renderer, Stepper>, String> {
         Ok(Platform {
             game: game,
             render_ctx: render_ctx,
@@ -216,7 +220,7 @@ impl<StepResult, Stepper: GameStepper<Input, StepResult>, Renderer: GameRenderer
     }
 
     pub fn run(mut self) -> Result<Stepper, String> {
-        let step_interval: f64 = 1.0/(GameStepper::steps_per_second() as f64);
+        let step_interval: f64 = 1.0/(self.game.steps_per_second() as f64);
 
         let mut last_time: f64 = time::precise_time_s();
 
@@ -312,7 +316,9 @@ impl<StepResult, Stepper: GameStepper<Input, StepResult>, Renderer: GameRenderer
             }
         }
 
-        let mouse = sdl2::mouse::get_mouse_state();
+        let mouse = match sdl2::mouse::get_mouse_state() {
+            (mouse_state, x, y) => (mouse_state, x as i32, y as i32)
+        };
         let keys = sdl2::keyboard::get_keyboard_state();
 
         let mouse_in_focus = match sdl2::mouse::get_mouse_focus() {
@@ -323,6 +329,8 @@ impl<StepResult, Stepper: GameStepper<Input, StepResult>, Renderer: GameRenderer
         let mut keyboard = HashSet::new();
         for (scancode, pressed) in keys.iter() {
             if *pressed {
+                use std::num::ToPrimitive;
+
                 let keycode = sdl2::keyboard::get_key_from_scancode(*scancode);
                 keyboard.insert(keycode.to_uint().expect("Could not convert keycode to uint"));
             }

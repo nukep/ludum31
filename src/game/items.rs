@@ -8,7 +8,7 @@ pub struct Poof {
     pub phase: f32
 }
 
-#[deriving(Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Bullet {
     pub xy: Point<f32>,
     pub vel_x: f32,
@@ -69,7 +69,7 @@ impl Chest {
     }
 }
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub enum ChestItem {
     UselessPoints,
     Drill,
@@ -548,7 +548,7 @@ impl DynamicItems {
     pub fn adjust_to_scroll_boundary(&mut self, screen: &Screen, tiles: &Tiles, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
         let width = screen.width;
 
-        let do_collision = |rect: &Rect<f32>| -> (Rect<f32>, bool, bool) {
+        let do_collision = |&: rect: &Rect<f32>| -> (Rect<f32>, bool, bool) {
             let mut moved = false;
 
             let new_rect = if x_inc {
@@ -621,12 +621,12 @@ impl DynamicItems {
     fn step_chests(&mut self) {
         fn lerp(a: f32, b: f32, p: f32) -> f32 { (b-a)*p + a }
         fn curve(x: f32) -> f32 {
-            use std::num::FloatMath;
+            use std::num::Float;
             use std::f32::consts::FRAC_PI_2;
 
             let coeff = 1.4;
 
-            1.0 - FloatMath::sin(((x*coeff)-coeff)*FRAC_PI_2) / FloatMath::sin((-coeff)*FRAC_PI_2)
+            1.0 - Float::sin(((x*coeff)-coeff)*FRAC_PI_2) / Float::sin((-coeff)*FRAC_PI_2)
         }
 
         for chest in self.chests.iter_mut().filter(|c| c.visible && c.fall_phase < 1.0) {
