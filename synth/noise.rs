@@ -56,7 +56,7 @@ impl Channel for Noise {
 
 struct RepeatingIterator<T> {
     vec: Vec<T>,
-    index: uint
+    index: usize
 }
 
 impl<T> RepeatingIterator<T> {

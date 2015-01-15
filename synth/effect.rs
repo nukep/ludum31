@@ -68,8 +68,8 @@ pub struct SweepEffect {
     pub freq: (f32, f32),
     pub volume: (f32, f32),
     pub duty: (f32, f32),
-    pub ticks: uint,
-    pub quantize: uint
+    pub ticks: u32,
+    pub quantize: u32
 }
 
 impl SweepEffect {
@@ -118,9 +118,9 @@ pub struct SweepEffectIterator {
     freq_log: (f32, f32),
     volume: (f32, f32),
     duty: (f32, f32),
-    ticks: uint,
-    quantize: uint,
-    tick: uint
+    ticks: u32,
+    quantize: u32,
+    tick: u32
 }
 
 impl Iterator for SweepEffectIterator {

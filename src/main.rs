@@ -10,8 +10,7 @@ extern crate synth;
 extern crate serialize;
 
 mod game;
-#[allow(dead_code)]
-mod opengl_util;
+#[allow(dead_code)] mod opengl_util;
 mod util;
 
 // Statically link SDL2 (libSDL2.a)
@@ -46,7 +45,7 @@ fn main() {
     let scale = 2;
 
     let size = match game.level.level_size_as_u32() {
-        (w, h) => (w as int * scale, h as int * scale)
+        (w, h) => (w as u16 * scale, h as u16 * scale)
     };
 
     let render_ctx = match RenderContext::new("Mr. Scroll", size, (3, 0), init_renderer) {

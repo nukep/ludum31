@@ -289,7 +289,7 @@ pub struct Player {
     pub state: PlayerState,
     pub drill: Option<PlayerItemDrill>,
     pub gun: Option<PlayerItemGun>,
-    pub keys: uint
+    pub keys: u32
 }
 
 impl Player {
@@ -483,7 +483,7 @@ impl Player {
         }
     }
 
-    pub fn add_keys(&mut self, keys: uint) {
+    pub fn add_keys(&mut self, keys: u32) {
         self.keys += keys;
     }
 

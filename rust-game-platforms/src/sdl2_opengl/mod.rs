@@ -4,13 +4,14 @@
 use sdl2;
 use time;
 use std::collections::HashSet;
+use std::num::cast;
 use super::{GameStepper, GameRenderer, PlatformStepResult};
 use super::fps_meter::{FPSMeter, ValueOnChange};
 
 #[derive(Clone)]
 struct SDLInputFrame {
     /// sdl2::keycode::KeyCode doesn't implement Clone, so we need to store an integer representation
-    keyboard: HashSet<uint>,
+    keyboard: HashSet<u32>,
     mouse: Option<(sdl2::mouse::MouseState, i32, i32)>,
     mouse_in_focus: bool,
     mouse_wheel_absolute: (i32, i32),
@@ -42,7 +43,7 @@ impl SDLInputFrame {
     fn is_keycode_down(&self, keycode: sdl2::keycode::KeyCode) -> bool {
         use std::num::ToPrimitive;
 
-        let keycode_int = keycode.to_uint().expect("Could not convert keycode to uint");
+        let keycode_int = keycode.to_u32().expect("Could not convert keycode to u32");
         self.keyboard.contains(&keycode_int)
     }
 
@@ -156,14 +157,14 @@ impl Drop for RenderSubsystem {
 }
 
 impl<Renderer> RenderContext<Renderer> {
-    pub fn new<F: FnOnce() -> Renderer>(title: &str, (width, height): (int, int), gl_version: (int, int), init_renderer: F)
+    pub fn new<F: FnOnce() -> Renderer>(title: &str, (width, height): (u16, u16), gl_version: (u8, u8), init_renderer: F)
     -> Result<RenderContext<Renderer>, String> {
         let rs = RenderSubsystem::init();
 
         match gl_version {
             (major, minor) => {
-                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMajorVersion, major);
-                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMinorVersion, minor);
+                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMajorVersion, major as isize);
+                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMinorVersion, minor as isize);
             }
         }
 
@@ -171,10 +172,10 @@ impl<Renderer> RenderContext<Renderer> {
         sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLDoubleBuffer, 1);
         sdl2::video::gl_set_attribute(
             sdl2::video::GLAttr::GLContextProfileMask,
-            sdl2::video::GLProfile::GLCoreProfile as int
+            sdl2::video::GLProfile::GLCoreProfile as isize
         );
 
-        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width, height, sdl2::video::OPENGL | sdl2::video::SHOWN) {
+        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width as isize, height as isize, sdl2::video::OPENGL | sdl2::video::SHOWN) {
             Ok(window) => window,
             Err(err) => return Err(format!("failed to create window: {}", err))
         };
@@ -267,9 +268,9 @@ impl<Stepper, Renderer> Platform<Renderer, Stepper> where
             match self.render_ctx.renderer.frame_limit() {
                 Some(fps) => {
                     let d = time::precise_time_s() - current_time;
-                    let ms = 1000/fps as int - (d*1000.0) as int;
+                    let ms = 1000/fps as i32 - (d*1000.0) as i32;
                     if ms > 0 {
-                        sdl2::timer::delay(ms as uint)
+                        sdl2::timer::delay(cast(ms).expect("Overflow"))
                     }
                 },
                 None => ()
@@ -332,7 +333,7 @@ impl<Stepper, Renderer> Platform<Renderer, Stepper> where
                 use std::num::ToPrimitive;
 
                 let keycode = sdl2::keyboard::get_key_from_scancode(*scancode);
-                keyboard.insert(keycode.to_uint().expect("Could not convert keycode to uint"));
+                keyboard.insert(keycode.to_u32().expect("Could not convert keycode to u32"));
             }
         }
 

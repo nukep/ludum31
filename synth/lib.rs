@@ -1,3 +1,4 @@
+use std::num::cast;
 use noise::Noise;
 use pulse::Pulse;
 use triangle::Triangle;
@@ -58,17 +59,18 @@ pub struct Controller<'a> {
     sink_freq: f32,
 
     /// How long each engine tick should be, in samples
-    tick_length: uint,
+    tick_length: usize,
     /// How many samples are left. Decrements and wraps as generation occurs.
     /// Maximum is tick_length.
-    tick_remainder: uint,
+    tick_remainder: usize,
 
+    #[unstable="Change to Box<[...]>"]
     channel_effects: Vec<[Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4]>
 }
 
 impl<'a> Controller<'a> {
-    pub fn new(sink_freq: f32, tick_length_s: f32, layers: uint) -> Controller<'a> {
-        let tick_length = (tick_length_s * sink_freq) as uint;
+    pub fn new(sink_freq: f32, tick_length_s: f32, layers: usize) -> Controller<'a> {
+        let tick_length = cast(tick_length_s * sink_freq).expect("Overflow");
 
         Controller {
             volume: 1.0,
@@ -89,23 +91,23 @@ impl<'a> Controller<'a> {
         for x in out.iter_mut() { *x *= self.volume; }
     }
 
-    fn get_layer(&mut self, layer: uint) -> &mut [Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4] {
+    fn get_layer(&mut self, layer: usize) -> &mut [Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4] {
         use std::ops::IndexMut;
 
-        self.channel_effects.index_mut(&layer)
+        &mut self.channel_effects[layer]
     }
 
-    pub fn set_effect(&mut self, layer: uint, channel: uint, effect: Box<Iterator<Item=ChannelEffectOut> + 'a>) {
+    pub fn set_effect(&mut self, layer: usize, channel: usize, effect: Box<Iterator<Item=ChannelEffectOut> + 'a>) {
         let layer = self.get_layer(layer);
         layer[channel] = Some(effect);
     }
 
-    pub fn clear_effect(&mut self, layer: uint, channel: uint) {
+    pub fn clear_effect(&mut self, layer: usize, channel: usize) {
         let layer = self.get_layer(layer);
         layer[channel] = None;
     }
 
-    fn generate_tick(&mut self, out: &mut [f32], offset: uint) -> uint {
+    fn generate_tick(&mut self, out: &mut [f32], offset: usize) -> usize {
         use std::cmp::min;
 
         if self.tick_remainder == self.tick_length {

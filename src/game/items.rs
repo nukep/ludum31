@@ -13,7 +13,7 @@ pub struct Bullet {
     pub xy: Point<f32>,
     pub vel_x: f32,
     pub phase: f32,
-    timeout: uint
+    timeout: u32
 }
 
 impl Bullet {
@@ -116,7 +116,7 @@ impl Monster2 {
 
 pub struct Beanstalk {
     pub xy: Point<f32>,
-    pub height: uint,
+    pub height: u32,
     pub visible: bool,
     triggered_by: Option<u8>,
 }
@@ -162,8 +162,8 @@ impl Key {
 
 pub struct Message {
     pub xy: Point<f32>,
-    pub width: uint,
-    pub height: uint,
+    pub width: u32,
+    pub height: u32,
     pub tiles: Vec<u16>,
     pub triggered_by: Option<u8>,
     pub visible: bool,
@@ -212,7 +212,7 @@ impl DynamicItems {
                 fall_distance: s.fall_distance,
                 fall_phase: 0.0,
                 opened: false,
-                contains: match s.contains.as_slice() {
+                contains: match &s.contains[] {
                     "useless" => ChestItem::UselessPoints,
                     "drill" => ChestItem::Drill,
                     "gun" => ChestItem::Gun,
@@ -323,7 +323,7 @@ impl DynamicItems {
 
         for beanstalk in self.beanstalks.iter_mut().filter(|m| m.triggered_by == Some(id) && !m.visible) {
             beanstalk.spawn();
-            for y in range(0u, beanstalk.height) {
+            for y in (0..beanstalk.height) {
                 poof_list.push(beanstalk.xy.offset(&self.screen, 0.0, y as f32 * 16.0));
             }
             did_something = true;
@@ -382,8 +382,8 @@ impl DynamicItems {
         items
     }
 
-    pub fn try_take_keys(&mut self, rect: &Rect<f32>) -> uint {
-        let mut count = 0u;
+    pub fn try_take_keys(&mut self, rect: &Rect<f32>) -> u32 {
+        let mut count = 0;
         for key in self.keys.iter_mut().filter(|k| k.is_free()) {
             if collision::test_rects(rect, &key.get_rect()) {
                 key.visible = false;

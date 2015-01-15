@@ -19,10 +19,9 @@ pub struct Audio {
     device: AudioDevice<MyCallback>
 }
 
-static MUSIC: uint = 0;
-static NOISE_FX: uint = 1;
-static PRIMARY_FX: uint = 2;
-static LAYERS: uint = 3;
+static NOISE_FX: usize = 1;
+static PRIMARY_FX: usize = 2;
+static LAYERS: usize = 3;
 
 impl Audio {
     pub fn new() -> Result<Audio, String> {
@@ -253,7 +252,7 @@ impl Audio {
         let mut lock = self.device.lock();
         let mut controller = &mut ((*lock).controller);
 
-        controller.set_effect(NOISE_FX, 3, box repeat(0u).flat_map(|_| {
+        controller.set_effect(NOISE_FX, 3, box repeat(0).flat_map(|_| {
             SweepEffect {
                 freq: (500.0, 100.0),
                 volume: (0.3, 0.0),

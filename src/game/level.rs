@@ -81,7 +81,7 @@ pub struct Chest {
 pub struct Beanstalk {
     pub x: f32,
     pub y: f32,
-    pub height: uint,
+    pub height: u32,
     pub triggered_by: Option<u8>,
     pub poof: bool,
 }
@@ -107,17 +107,17 @@ pub struct StickyKey {
 pub struct Message {
     pub x: f32,
     pub y: f32,
-    pub width: uint,
-    pub height: uint,
+    pub width: u32,
+    pub height: u32,
     pub tiles: Vec<u16>,
     pub triggered_by: Option<u8>
 }
 
 pub struct SetTo {
-    pub x: uint,
-    pub y: uint,
-    pub width: uint,
-    pub height: uint,
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
     pub tile: Tile,
     pub triggered_by: Option<u8>
 }
@@ -142,18 +142,18 @@ impl Tiles {
     }
 
     pub fn get_tile(&self, x: u8, y: u8) -> &Tile {
-        let offset = y as uint * self.width as uint + x as uint;
+        let offset = y as usize * self.width as usize + x as usize;
         &self.tiles[offset]
     }
 
     pub fn set_tile(&mut self, x: u8, y: u8, tile: Tile) {
-        let offset = y as uint * self.width as uint + x as uint;
+        let offset = y as usize * self.width as usize + x as usize;
         self.tiles[offset] = tile;
     }
 
     pub fn apply_set_to(&mut self, set_to: &SetTo) {
-        for y in range(set_to.y, set_to.y + set_to.height) {
-            for x in range(set_to.x, set_to.x + set_to.width) {
+        for y in (set_to.y..set_to.y + set_to.height) {
+            for x in (set_to.x..set_to.x + set_to.width) {
                 self.set_tile(x as u8, y as u8, set_to.tile.clone());
             }
         }
@@ -162,12 +162,12 @@ impl Tiles {
     pub fn iter(&self) -> LevelTileIterator {
         LevelTileIterator {
             tiles: &self.tiles,
-            width: self.width as uint,
+            width: self.width as usize,
             index: 0
         }
     }
 
-    fn nudge(tile_size: f32, x: f32, y: f32, left_top: (int, int), right_bottom: (int, int), direction: (Option<bool>, Option<bool>)) -> (f32, f32) {
+    fn nudge(tile_size: f32, x: f32, y: f32, left_top: (i32, i32), right_bottom: (i32, i32), direction: (Option<bool>, Option<bool>)) -> (f32, f32) {
         let (left, top) = left_top;
         let (right, bottom) = right_bottom;
         let (nudge_right, nudge_bottom) = direction;
@@ -207,7 +207,7 @@ impl Tiles {
         let (tiles, left_top, right_bottom) = self.get_tiles_in_rect(rect);
 
         let nudge = tiles.iter().any(|&(t, _, _)| !t.tile_type.can_dig);
-        let emerge_hit: Vec<(int, int)> = tiles.iter().filter_map(|&(t, x, y)| {
+        let emerge_hit: Vec<(i32, i32)> = tiles.iter().filter_map(|&(t, x, y)| {
             if t.tile_type.id == 0x16 { Some((x, y)) }
             else { None }
         }).collect();
@@ -225,21 +225,21 @@ impl Tiles {
         }
     }
 
-    fn get_left_top_tile_coord(&self, rect: &Rect<f32>) -> ((int, int), (int, int)) {
+    fn get_left_top_tile_coord(&self, rect: &Rect<f32>) -> ((i32, i32), (i32, i32)) {
         use std::num::Float;
 
         let (x, y) = rect.left_top().xy();
         let (w, h) = rect.size();
 
         let (left, top) = {
-            (Float::floor(x / self.tile_size) as int, Float::floor(y / self.tile_size) as int)
+            (Float::floor(x / self.tile_size) as i32, Float::floor(y / self.tile_size) as i32)
         };
         let (right, bottom) = {
-            let (mut r, mut b) = (Float::floor((x + w-1.0) / self.tile_size) as int, Float::floor((y + h-1.0) / self.tile_size) as int);
+            let (mut r, mut b) = (Float::floor((x + w-1.0) / self.tile_size) as i32, Float::floor((y + h-1.0) / self.tile_size) as i32);
 
             // Wrapping
-            if r >= self.width as int { r -= self.width as int }
-            if b >= self.height as int { b -= self.height as int }
+            if r >= self.width as i32 { r -= self.width as i32 }
+            if b >= self.height as i32 { b -= self.height as i32 }
 
             (r, b)
         };
@@ -247,7 +247,7 @@ impl Tiles {
         ((left, top), (right, bottom))
     }
 
-    fn get_tiles_in_rect(&self, rect: &Rect<f32>) -> ([(&Tile, int, int); 4], (int, int), (int, int)) {
+    fn get_tiles_in_rect(&self, rect: &Rect<f32>) -> ([(&Tile, i32, i32); 4], (i32, i32), (i32, i32)) {
         let ((left, top), (right, bottom)) = self.get_left_top_tile_coord(rect);
 
         ([
@@ -294,7 +294,7 @@ impl Tiles {
         None
     }
 
-    pub fn take_coins(&mut self, rect: &Rect<f32>) -> uint {
+    pub fn take_coins(&mut self, rect: &Rect<f32>) -> u32 {
         let mut count = 0;
         while let Some((x, y)) = self.is_tile_inside(rect, 0x20) {
             self.set_tile(x, y, Tile::empty());
@@ -357,8 +357,8 @@ impl Level {
 
 pub struct LevelTileIterator<'a> {
     tiles: &'a Vec<Tile>,
-    width: uint,
-    index: uint
+    width: usize,
+    index: usize
 }
 
 impl<'a> Iterator for LevelTileIterator<'a> {
@@ -477,7 +477,7 @@ fn parse_from_json(input: &str) -> Level {
                 beanstalks.push(Beanstalk {
                     x: x,
                     y: y,
-                    height: (height / tile_size) as uint,
+                    height: (height / tile_size) as u32,
                     triggered_by: triggered_by,
                     poof: poof,
                 });
@@ -511,10 +511,10 @@ fn parse_from_json(input: &str) -> Level {
                 let triggered_by = parse_property_as_number(properties, "triggered_by");
 
                 let message_tiles = parse_tiles(properties, "tiles");
-                let w = (width / tile_size) as uint;
-                let h = (height / tile_size) as uint;
+                let w = (width / tile_size) as u32;
+                let h = (height / tile_size) as u32;
 
-                assert_eq!(message_tiles.len(), w*h);
+                assert_eq!(message_tiles.len(), (w*h) as usize);
 
                 messages.push(Message {
                     x: x,
@@ -530,10 +530,10 @@ fn parse_from_json(input: &str) -> Level {
 
                 let tile_id = parse_property_as_number(properties, "tile").expect("Reqires 'tile'");
 
-                let tile_x = (x / tile_size) as uint;
-                let tile_y = (y / tile_size) as uint;
-                let w = (width / tile_size) as uint;
-                let h = (height / tile_size) as uint;
+                let tile_x = (x / tile_size) as u32;
+                let tile_y = (y / tile_size) as u32;
+                let w = (width / tile_size) as u32;
+                let h = (height / tile_size) as u32;
 
                 set_tos.push(SetTo {
                     x: tile_x,

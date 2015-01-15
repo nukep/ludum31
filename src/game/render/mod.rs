@@ -82,8 +82,8 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
 
                 uniform.set_mat4(u_projection_view, step_result.projection_view_parallax.as_fixed());
                 // Draw parallax
-                for y in range(0, game.level.height) {
-                    for x in range(0, game.level.width) {
+                for y in (0..game.level.height) {
+                    for x in (0..game.level.width) {
                         let pos = Point::new(screen, (x as f32 * tile_size, y as f32 * tile_size));
                         draw_tile_all(pos, 0x46, (false, false), false);
                     }
@@ -106,8 +106,8 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
                 // Draw messages
                 for message in game.items.messages.iter().filter(|m| m.visible) {
                     for (i, tile_id) in message.tiles.iter().enumerate() {
-                        let offset_x = i % message.width;
-                        let offset_y = i / message.width;
+                        let offset_x = i as u32 % message.width;
+                        let offset_y = i as u32 / message.width;
 
                         let xy = message.xy.offset(screen, offset_x as f32 * tile_size, offset_y as f32 * tile_size);
 
@@ -126,7 +126,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
 
                 // Draw beanstalks
                 for beanstalk in game.items.beanstalks.iter().filter(|t| t.visible) {
-                    for y in range(0, beanstalk.height) {
+                    for y in (0..beanstalk.height) {
                         let tile = match y % 2 {
                             0 => 0x0E,
                             _ => 0x0F
@@ -271,7 +271,7 @@ impl GameRenderer<Game, GameStepResult> for Renderer {
 
 fn tile_from_phase(tiles: &[u16], phase: f32) -> u16 {
     let i = phase * tiles.len() as f32;
-    let tile_index = if i < 0.0 { 0 } else if i >= tiles.len() as f32 { tiles.len() - 1 } else { i as uint };
+    let tile_index = if i < 0.0 { 0 } else if i >= tiles.len() as f32 { tiles.len() - 1 } else { i as usize };
 
     tiles[tile_index]
 }
