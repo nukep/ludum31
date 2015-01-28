@@ -34,6 +34,7 @@ impl Audio {
         let desired_spec = AudioSpecDesired {
             freq: freq,
             channels: 1,
+            samples: 0,
             callback: MyCallback { controller: controller }
         };
 

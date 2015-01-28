@@ -163,8 +163,8 @@ impl<Renderer> RenderContext<Renderer> {
 
         match gl_version {
             (major, minor) => {
-                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMajorVersion, major as isize);
-                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMinorVersion, minor as isize);
+                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMajorVersion, major as i32);
+                sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMinorVersion, minor as i32);
             }
         }
 
@@ -172,10 +172,10 @@ impl<Renderer> RenderContext<Renderer> {
         sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLDoubleBuffer, 1);
         sdl2::video::gl_set_attribute(
             sdl2::video::GLAttr::GLContextProfileMask,
-            sdl2::video::GLProfile::GLCoreProfile as isize
+            sdl2::video::GLProfile::GLCoreProfile as i32
         );
 
-        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width as isize, height as isize, sdl2::video::OPENGL | sdl2::video::SHOWN) {
+        let window = match sdl2::video::Window::new(title, sdl2::video::WindowPos::PosCentered, sdl2::video::WindowPos::PosCentered, width as i32, height as i32, sdl2::video::OPENGL | sdl2::video::SHOWN) {
             Ok(window) => window,
             Err(err) => return Err(format!("failed to create window: {}", err))
         };
