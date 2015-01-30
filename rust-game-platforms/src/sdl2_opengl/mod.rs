@@ -304,11 +304,11 @@ impl<Stepper, Renderer> Platform<Renderer, Stepper> where
             use sdl2::keycode::KeyCode;
 
             match sdl2::event::poll_event() {
-                Event::Quit(_) => { exit_request = true; },
-                Event::KeyDown(_, _, KeyCode::Escape, _, _, _) => {
+                Event::Quit {..} => { exit_request = true; },
+                Event::KeyDown { keycode: KeyCode::Escape, .. } => {
                     exit_request = true;
                 },
-                Event::MouseWheel(_, _, _, x, y) => {
+                Event::MouseWheel { x, y, .. } => {
                     let (abs_x, abs_y) = self.mouse_wheel_absolute;
                     self.mouse_wheel_absolute = (abs_x + x, abs_y + y);
                 },
