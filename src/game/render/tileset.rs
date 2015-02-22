@@ -1,14 +1,14 @@
 use cgmath::Matrix4;
 
-pub struct TilesetDrawer<'a, F> where
-    F: Fn(u16, &[[f32; 4]; 4]) + 'a
+pub struct TilesetDrawer<F> where
+    F: Fn(u16, &[[f32; 4]; 4])
 {
     pub screen_size: (f32, f32),
     pub tile_size: f32,
     pub draw: F,
 }
 
-impl<'a, F> TilesetDrawer<'a, F> where
+impl<F> TilesetDrawer<F> where
     F: Fn(u16, &[[f32; 4]; 4])
 {
     pub fn draw(&self, (x, y): (f32, f32), id: u16, flip: (bool, bool), rotate_90: bool) {

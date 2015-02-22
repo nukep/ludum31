@@ -38,7 +38,7 @@ impl Renderer {
     }
 }
 
-impl GameRenderer<Game, GameStepResult> for Renderer {
+impl<'sdl> GameRenderer<Game<'sdl>, GameStepResult> for Renderer {
     fn frame_limit(&self) -> Option<u32> { None }
 
     fn render(&mut self, game: &Game, step_result: &GameStepResult) {

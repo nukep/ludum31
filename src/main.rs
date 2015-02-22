@@ -28,9 +28,11 @@ extern {}
 fn main() {
     use game_platforms::sdl2_opengl::{Platform, RenderContext};
 
-    let game = game::Game::new();
+    let sdl_context = sdl2::init(sdl2::INIT_VIDEO).unwrap();
 
-    let init_renderer = |:| {
+    let game = game::Game::new(&sdl_context);
+
+    let init_renderer = || {
         gl::load_with(|s: &str| unsafe {
             use std;
             match sdl2::video::gl_get_proc_address(s) {
@@ -53,7 +55,7 @@ fn main() {
         Err(e) => panic!("{}", e)
     };
 
-    let platform = match Platform::new(game, render_ctx) {
+    let platform = match Platform::new(&sdl_context, game, render_ctx) {
         Ok(ctx) => ctx,
         Err(e) => panic!("{}", e)
     };

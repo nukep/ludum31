@@ -386,8 +386,9 @@ fn parse_from_json(input: &str) -> Level {
     let tile_size: f32 = 16.0;
 
     let json = match FromStr::from_str(input) {
-        Some(Json::Object(obj)) => obj,
-        _ => panic!("Not a JSON object")
+        Ok(Json::Object(obj)) => obj,
+        Err(e) => panic!("{}", e),
+        _ => panic!("Not a JSON object"),
     };
 
     let layers = json.get("layers").unwrap().as_array().expect("Not a JSON array");
@@ -576,7 +577,7 @@ fn parse_tiles(properties: &rustc_serialize::json::Object, key: &str) -> Vec<u16
             let value_str = j.as_string().expect("Not a JSON string");
 
             value_str.split(' ').map(|num_str| {
-                FromStrRadix::from_str_radix(num_str, 16).expect("Not a base 16 number")
+                FromStrRadix::from_str_radix(num_str, 16).unwrap()
             }).collect()
         },
         None => panic!("No tiles")
@@ -596,11 +597,18 @@ fn parse_property_as_boolean(properties: &rustc_serialize::json::Object, key: &s
     }
 }
 
-fn parse_property_as_number<T: FromStrRadix>(properties: &rustc_serialize::json::Object, key: &str) -> Option<T> {
+use std::fmt::Display;
+
+fn parse_property_as_number<T: FromStrRadix>(properties: &rustc_serialize::json::Object, key: &str) -> Option<T>
+where <T as FromStrRadix>::Err: Display
+{
     match properties.get(key) {
         Some(j) => {
             let value_str = j.as_string().expect("Not a JSON string");
-            Some(FromStrRadix::from_str_radix(value_str, 10).expect("Not a base 10 number"))
+            Some(match FromStrRadix::from_str_radix(value_str, 10) {
+                Ok(v) => v,
+                Err(e) => panic!("{}", e)
+            })
         },
         None => None
     }

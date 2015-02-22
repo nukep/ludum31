@@ -18,8 +18,8 @@ mod player;
 mod wrapping;
 pub mod render;
 
-pub struct Game {
-    audio: Option<Audio>,
+pub struct Game<'sdl> {
+    audio: Option<Audio<'sdl>>,
     pub level: Level,
     pub items: DynamicItems,
     player: Player,
@@ -34,9 +34,9 @@ pub struct GameStepResult {
     projection_view_parallax: cgmath::Matrix4<f32>,
 }
 
-impl Game {
-    pub fn new() -> Game {
-        let audio = match Audio::new() {
+impl<'sdl> Game<'sdl> {
+    pub fn new<'a>(sdl: &'a sdl2::Sdl) -> Game<'a> {
+        let audio = match Audio::new(sdl) {
             Ok(audio) => Some(audio),
             Err(e) => {
                 println!("{}", e);
@@ -69,7 +69,7 @@ impl Game {
     }
 }
 
-impl GameStepper<Input> for Game {
+impl<'sdl> GameStepper<Input> for Game<'sdl> {
     type StepResult = GameStepResult;
 
     fn steps_per_second(&self) -> u32 { 60 }

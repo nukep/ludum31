@@ -3,19 +3,8 @@ use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioDevice};
 use synth::Controller;
 use synth::effect::{SweepEffect, RandomEffect};
 
-/// An empty struct that initializes and quits the SDL subsystems in RAII fashion
-struct AudioSubsystem;
-
-impl AudioSubsystem {
-    fn init() -> AudioSubsystem { sdl2::init_subsystem(sdl2::INIT_AUDIO); AudioSubsystem }
-}
-
-impl Drop for AudioSubsystem {
-    fn drop(&mut self) { sdl2::quit_subsystem(sdl2::INIT_AUDIO); }
-}
-
-pub struct Audio {
-    _subsystem: AudioSubsystem,
+pub struct Audio<'sdl> {
+    _subsystem: sdl2::Subsystem<'sdl>,
     device: AudioDevice<MyCallback>
 }
 
@@ -23,9 +12,9 @@ static NOISE_FX: usize = 1;
 static PRIMARY_FX: usize = 2;
 static LAYERS: usize = 3;
 
-impl Audio {
-    pub fn new() -> Result<Audio, String> {
-        let subsystem = AudioSubsystem::init();
+impl<'sdl> Audio<'sdl> {
+    pub fn new<'a>(sdl: &'a sdl2::Sdl) -> Result<Audio<'a>, String> {
+        let subsystem = try!(sdl.init_subsystem(sdl2::INIT_AUDIO));
         let freq = 44100;
 
         let mut controller = Controller::new(freq as f32, 1.0/60.0, LAYERS);
@@ -280,7 +269,9 @@ impl Audio {
 struct MyCallback {
     controller: Controller<'static>
 }
-impl AudioCallback<f32> for MyCallback {
+impl AudioCallback for MyCallback {
+    type Channel = f32;
+
     fn callback(&mut self, out: &mut [f32]) {
         self.controller.generate(out);
     }

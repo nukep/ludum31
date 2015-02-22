@@ -139,28 +139,14 @@ impl Input {
 }
 
 pub struct RenderContext<Renderer> {
-    _rs: RenderSubsystem,
     window: sdl2::video::Window,
     _gl_context: sdl2::video::GLContext,
     pub renderer: Renderer
 }
 
-/// An empty struct that initializes and quits the SDL subsystems in RAII fashion
-struct RenderSubsystem;
-
-impl RenderSubsystem {
-    fn init() -> RenderSubsystem { sdl2::init_subsystem(sdl2::INIT_VIDEO); RenderSubsystem }
-}
-
-impl Drop for RenderSubsystem {
-    fn drop(&mut self) { sdl2::quit_subsystem(sdl2::INIT_VIDEO); }
-}
-
 impl<Renderer> RenderContext<Renderer> {
     pub fn new<F: FnOnce() -> Renderer>(title: &str, (width, height): (u16, u16), gl_version: (u8, u8), init_renderer: F)
     -> Result<RenderContext<Renderer>, String> {
-        let rs = RenderSubsystem::init();
-
         match gl_version {
             (major, minor) => {
                 sdl2::video::gl_set_attribute(sdl2::video::GLAttr::GLContextMajorVersion, major as i32);
@@ -188,7 +174,6 @@ impl<Renderer> RenderContext<Renderer> {
         let renderer = init_renderer();
 
         Ok(RenderContext {
-            _rs: rs,
             window: window,
             _gl_context: gl_context,
             renderer: renderer
@@ -202,18 +187,20 @@ impl<Renderer> RenderContext<Renderer> {
     }
 }
 
-pub struct Platform<Renderer, Stepper> {
+pub struct Platform<'sdl, Renderer, Stepper> {
+    sdl: &'sdl sdl2::Sdl,
     render_ctx: RenderContext<Renderer>,
     game: Stepper,
 
     mouse_wheel_absolute: (i32, i32)
 }
 
-impl<Stepper, Renderer> Platform<Renderer, Stepper> where
+impl<'sdl, Stepper, Renderer> Platform<'sdl, Renderer, Stepper> where
     Stepper: GameStepper<Input>, Renderer: GameRenderer<Stepper, <Stepper as GameStepper<Input>>::StepResult>
 {
-    pub fn new(game: Stepper, render_ctx: RenderContext<Renderer>) -> Result<Platform<Renderer, Stepper>, String> {
+    pub fn new<'a>(sdl: &'a sdl2::Sdl, game: Stepper, render_ctx: RenderContext<Renderer>) -> Result<Platform<'a, Renderer, Stepper>, String> {
         Ok(Platform {
+            sdl: sdl,
             game: game,
             render_ctx: render_ctx,
             mouse_wheel_absolute: (0, 0)
@@ -299,11 +286,11 @@ impl<Stepper, Renderer> Platform<Renderer, Stepper> where
     fn event_loop(&mut self, fps: Option<f64>) -> SDLInputFrame {
         let mut exit_request = false;
 
-        'event: loop {
+        for event in self.sdl.event_pump().poll_iter() {
             use sdl2::event::Event;
             use sdl2::keycode::KeyCode;
 
-            match sdl2::event::poll_event() {
+            match event {
                 Event::Quit {..} => { exit_request = true; },
                 Event::KeyDown { keycode: KeyCode::Escape, .. } => {
                     exit_request = true;
@@ -312,7 +299,6 @@ impl<Stepper, Renderer> Platform<Renderer, Stepper> where
                     let (abs_x, abs_y) = self.mouse_wheel_absolute;
                     self.mouse_wheel_absolute = (abs_x + x, abs_y + y);
                 },
-                Event::None => { break 'event; },
                 _ => ()
             }
         }

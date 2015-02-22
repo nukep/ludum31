@@ -65,7 +65,7 @@ pub struct Controller<'a> {
     tick_remainder: usize,
 
     #[unstable="Change to Box<[...]>"]
-    channel_effects: Vec<[Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4]>
+    channel_effects: Vec<[Option<Box<Iterator<Item=ChannelEffectOut> + Send + 'a>>; 4]>
 }
 
 impl<'a> Controller<'a> {
@@ -91,11 +91,11 @@ impl<'a> Controller<'a> {
         for x in out.iter_mut() { *x *= self.volume; }
     }
 
-    fn get_layer(&mut self, layer: usize) -> &mut [Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>; 4] {
+    fn get_layer(&mut self, layer: usize) -> &mut [Option<Box<Iterator<Item=ChannelEffectOut> + Send + 'a>>; 4] {
         &mut self.channel_effects[layer]
     }
 
-    pub fn set_effect(&mut self, layer: usize, channel: usize, effect: Box<Iterator<Item=ChannelEffectOut> + 'a>) {
+    pub fn set_effect(&mut self, layer: usize, channel: usize, effect: Box<Iterator<Item=ChannelEffectOut> + Send + 'a>) {
         let layer = self.get_layer(layer);
         layer[channel] = Some(effect);
     }
@@ -126,7 +126,7 @@ impl<'a> Controller<'a> {
     }
 
     fn tick(&mut self) {
-        fn tick_channel<'a, T: Channel>(c: &mut T, current_effect: &mut Option<Box<Iterator<Item=ChannelEffectOut> + 'a>>, sink_freq: f32) {
+        fn tick_channel<'a, T: Channel>(c: &mut T, current_effect: &mut Option<Box<Iterator<Item=ChannelEffectOut> + Send + 'a>>, sink_freq: f32) {
             let finished = if let &mut Some(ref mut effect) = current_effect {
                 match effect.next() {
                     Some(effect_out) => {

@@ -1,10 +1,5 @@
 use super::rect::Rect;
 
-pub trait Collidable<R, P> {
-    fn test_point(point: &P) -> bool;
-    fn test_rect(rect: &R) -> bool;
-}
-
 pub fn test_rect_point(a: &Rect<f32>, b: (f32, f32)) -> bool {
     let (ax1, ay1, ax2, ay2) = a.ltrb();
     let (bx, by) = b;
