@@ -1,4 +1,3 @@
-use std::num::FromStrRadix;
 use rustc_serialize;
 use super::rect::Rect;
 use super::wrapping::Screen;
@@ -577,7 +576,7 @@ fn parse_tiles(properties: &rustc_serialize::json::Object, key: &str) -> Vec<u16
             let value_str = j.as_string().expect("Not a JSON string");
 
             value_str.split(' ').map(|num_str| {
-                FromStrRadix::from_str_radix(num_str, 16).unwrap()
+                u16::from_str_radix(num_str, 16).unwrap()
             }).collect()
         },
         None => panic!("No tiles")
@@ -597,18 +596,28 @@ fn parse_property_as_boolean(properties: &rustc_serialize::json::Object, key: &s
     }
 }
 
-use std::fmt::Display;
+trait ParseNumber {
+    fn parse(str: &str, radix: u32) -> Self;
+}
 
-fn parse_property_as_number<T: FromStrRadix>(properties: &rustc_serialize::json::Object, key: &str) -> Option<T>
-where <T as FromStrRadix>::Err: Display
+impl ParseNumber for u8 {
+    fn parse(str: &str, radix: u32) -> u8 {
+        u8::from_str_radix(str, radix).unwrap()
+    }
+}
+
+impl ParseNumber for u16 {
+    fn parse(str: &str, radix: u32) -> u16 {
+        u16::from_str_radix(str, radix).unwrap()
+    }
+}
+
+fn parse_property_as_number<T: ParseNumber>(properties: &rustc_serialize::json::Object, key: &str) -> Option<T>
 {
     match properties.get(key) {
         Some(j) => {
             let value_str = j.as_string().expect("Not a JSON string");
-            Some(match FromStrRadix::from_str_radix(value_str, 10) {
-                Ok(v) => v,
-                Err(e) => panic!("{}", e)
-            })
+            Some(ParseNumber::parse(value_str, 10))
         },
         None => None
     }

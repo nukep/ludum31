@@ -70,12 +70,12 @@ impl<'sdl> GameRenderer<Game<'sdl>, GameStepResult> for Renderer {
                 let tileset_drawer = TilesetDrawer {
                     screen_size: (game.level.width as f32 * tile_size, game.level.height as f32 * tile_size),
                     tile_size: tile_size,
-                    draw: |&: id, model| {
+                    draw: |id, model| {
                         uniform.set_mat4(u_model, model);
                         vao_ctx.draw_arrays(gl::TRIANGLES, (6*id) as i32, 6);
                     }
                 };
-                let draw_tile_all = |&: xy: Point<f32>, id: u16, flip: (bool, bool), rotate_90: bool| {
+                let draw_tile_all = |xy: Point<f32>, id: u16, flip: (bool, bool), rotate_90: bool| {
                     let (x, y) = xy.floor(screen, 1.0).xy();
                     tileset_drawer.draw((x, y), id, flip, rotate_90);
                 };

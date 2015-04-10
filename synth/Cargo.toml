@@ -7,3 +7,6 @@ authors = ["Dan Spencer <dan@atomicpotato.net>"]
 [[lib]]
 name = "synth"
 path = "lib.rs"
+
+[dependencies]
+rand = "0.3"

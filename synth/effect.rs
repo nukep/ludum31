@@ -2,9 +2,9 @@
 
 use super::{ChannelEffectOut};
 
-use std::rand::{XorShiftRng};
+use rand::{Rng, XorShiftRng};
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct RandomEffect {
     pub freq: (f32, f32),
     pub volume: (f32, f32),
@@ -42,8 +42,6 @@ impl Iterator for RandomEffectIterator {
     type Item = ChannelEffectOut;
 
     fn next(&mut self) -> Option<ChannelEffectOut> {
-        use std::rand::Rng;
-
         fn gen(rng: &mut XorShiftRng, r: (f32, f32)) -> f32 {
             let (a, b) = r;
             if a == b { a }

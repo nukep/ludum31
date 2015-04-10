@@ -1,4 +1,5 @@
-use std::num::cast;
+extern crate rand;
+
 use noise::Noise;
 use pulse::Pulse;
 use triangle::Triangle;
@@ -70,7 +71,7 @@ pub struct Controller<'a> {
 
 impl<'a> Controller<'a> {
     pub fn new(sink_freq: f32, tick_length_s: f32, layers: usize) -> Controller<'a> {
-        let tick_length = cast(tick_length_s * sink_freq).expect("Overflow");
+        let tick_length = (tick_length_s * sink_freq) as usize;
 
         Controller {
             volume: 1.0,

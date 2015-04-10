@@ -24,7 +24,7 @@ pub fn load_png32_data_and_upload(png_data: &[u8]) -> Result<Texture2D, String> 
     }
 
     unsafe {
-        let ptr = transmute(img.as_slice().as_ptr());
+        let ptr = transmute(img.as_ptr());
         let internal = gl::RGBA8 as GLint;
         let format = gl::RGBA;
         gl::TexImage2D(

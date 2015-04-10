@@ -1,4 +1,4 @@
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct Screen {
     pub width: f32,
     pub height: f32

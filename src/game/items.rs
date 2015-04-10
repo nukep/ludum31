@@ -69,7 +69,7 @@ impl Chest {
     }
 }
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub enum ChestItem {
     UselessPoints,
     Drill,
@@ -212,7 +212,7 @@ impl DynamicItems {
                 fall_distance: s.fall_distance,
                 fall_phase: 0.0,
                 opened: false,
-                contains: match &s.contains[] {
+                contains: match &s.contains as &str {
                     "useless" => ChestItem::UselessPoints,
                     "drill" => ChestItem::Drill,
                     "gun" => ChestItem::Gun,
@@ -548,7 +548,7 @@ impl DynamicItems {
     pub fn adjust_to_scroll_boundary(&mut self, screen: &Screen, tiles: &Tiles, x_line: f32, x_inc: bool, x_dec: bool) -> (bool, bool) {
         let width = screen.width;
 
-        let do_collision = |&: rect: &Rect<f32>| -> (Rect<f32>, bool, bool) {
+        let do_collision = |rect: &Rect<f32>| -> (Rect<f32>, bool, bool) {
             let mut moved = false;
 
             let new_rect = if x_inc {

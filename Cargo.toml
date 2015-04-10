@@ -12,7 +12,7 @@ statically-link-sdl2 = []
 no-console = []
 
 [dependencies]
-rustc-serialize = "0.2"
+rustc-serialize = "0.3"
 
 [dependencies.sdl2]
 git = "https://github.com/AngryLawyer/rust-sdl2"
@@ -25,6 +25,7 @@ git = "https://github.com/bjz/gl-rs"
 
 [dependencies.cgmath]
 git = "https://github.com/bjz/cgmath-rs"
+branch = "rust-1.0"
 
 [dependencies.time]
 git = "https://github.com/rust-lang/time"

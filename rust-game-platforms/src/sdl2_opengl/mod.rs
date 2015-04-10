@@ -4,14 +4,12 @@
 use sdl2;
 use time;
 use std::collections::HashSet;
-use std::num::cast;
 use super::{GameStepper, GameRenderer, PlatformStepResult};
 use super::fps_meter::{FPSMeter, ValueOnChange};
 
 #[derive(Clone)]
 struct SDLInputFrame {
-    /// sdl2::keycode::KeyCode doesn't implement Clone, so we need to store an integer representation
-    keyboard: HashSet<u32>,
+    keyboard: HashSet<sdl2::keycode::KeyCode>,
     mouse: Option<(sdl2::mouse::MouseState, i32, i32)>,
     mouse_in_focus: bool,
     mouse_wheel_absolute: (i32, i32),
@@ -41,10 +39,7 @@ impl SDLInputFrame {
     }
 
     fn is_keycode_down(&self, keycode: sdl2::keycode::KeyCode) -> bool {
-        use std::num::ToPrimitive;
-
-        let keycode_int = keycode.to_u32().expect("Could not convert keycode to u32");
-        self.keyboard.contains(&keycode_int)
+        self.keyboard.contains(&keycode)
     }
 
     fn get_mouse_position_if_focused(&self) -> Option<(i32, i32)> {
@@ -257,7 +252,7 @@ impl<'sdl, Stepper, Renderer> Platform<'sdl, Renderer, Stepper> where
                     let d = time::precise_time_s() - current_time;
                     let ms = 1000/fps as i32 - (d*1000.0) as i32;
                     if ms > 0 {
-                        sdl2::timer::delay(cast(ms).expect("Overflow"))
+                        sdl2::timer::delay(ms as u32)
                     }
                 },
                 None => ()
@@ -316,10 +311,8 @@ impl<'sdl, Stepper, Renderer> Platform<'sdl, Renderer, Stepper> where
         let mut keyboard = HashSet::new();
         for (scancode, pressed) in keys.iter() {
             if *pressed {
-                use std::num::ToPrimitive;
-
                 let keycode = sdl2::keyboard::get_key_from_scancode(*scancode);
-                keyboard.insert(keycode.to_u32().expect("Could not convert keycode to u32"));
+                keyboard.insert(keycode);
             }
         }
 

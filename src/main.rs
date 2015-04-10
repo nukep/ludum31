@@ -1,29 +1,14 @@
-#![feature(link_args)]
-#![feature(box_syntax)]
-
 extern crate cgmath;
 extern crate game_platforms;
 extern crate gl;
 extern crate image;
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
 extern crate sdl2;
 extern crate synth;
 
 mod game;
 #[allow(dead_code)] mod opengl_util;
 mod util;
-
-// Statically link SDL2 (libSDL2.a)
-// Link the required Windows dependencies
-#[cfg(target_os="windows")]
-#[cfg(feature="statically-link-sdl2")]
-#[link_args = "-lwinmm -lole32 -lgdi32 -limm32 -lversion -loleaut32 -luuid"]
-extern {}
-
-#[cfg(target_os="windows")]
-#[cfg(feature="no-console")]
-#[link_args = "-Wl,--subsystem,windows"]
-extern {}
 
 fn main() {
     use game_platforms::sdl2_opengl::{Platform, RenderContext};

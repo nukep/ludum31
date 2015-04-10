@@ -14,7 +14,7 @@ pub struct Noise {
 
 impl Noise {
     pub fn new() -> Noise {
-        use std::rand::{Rng, XorShiftRng};
+        use rand::{Rng, XorShiftRng};
 
         let mut rng = XorShiftRng::new_unseeded();
 
