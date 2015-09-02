@@ -2,6 +2,8 @@
 
 [Visit the Ludum 31 entry](http://ludumdare.com/compo/ludum-dare-31/?action=preview&uid=31244)
 
+![Screenshot](screenshots/1.jpg)
+
 **Theme: Entire Game on One Screen**
 
 Mr. Scroll is a scrolling platformer in which the player wraps across the screen.
